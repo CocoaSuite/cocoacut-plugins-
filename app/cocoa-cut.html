@@ -599,7 +599,7 @@ function drawText(x,c,t){if(c.font&&!FL[c.font])ensureFont(c.font);const sz=c.si
 function drawClip(x,c,t,noTr){const m=c.media?med(c.media):null;let src=null,iw=0,ih=0;
  if(c.type!=='text'){if(!m||m.type==='audio')return;
   if(m.type==='image'){src=IMG[m.id];if(!src){loadImg(m).catch(()=>{});return}iw=src.naturalWidth;ih=src.naturalHeight}
-  else{const pb=playing&&!exporting&&pxUse()&&pxFrame(c,m,t);if(pb){src=pb;iw=pb.width;ih=pb.height}else{src=getEl(c).el;if(src.readyState<2)return;iw=src.videoWidth;ih=src.videoHeight}}
+  else{const pq=playing&&!exporting&&pxOn(m),pb=pq&&(pxFrame(c,m,t)||pxFrame(c,m,t,1));if(pb){src=pb;iw=pb.width;ih=pb.height}else if(pq)return;else{src=getEl(c).el;if(src.readyState<2)return;iw=src.videoWidth;ih=src.videoHeight}}
   if(!iw||!ih)return}
  const W=P.w,H=P.h;x.save();let a=c.op??1,post=0,postC='#000',tbl=0,tpx=0;
  const L=[],K0=x.getTransform().a;
@@ -657,7 +657,7 @@ function visibleAt(t){const out=[];for(const tr of P.tracks.filter(x=>x.k==='v')
  for(const c of P.clips){if(c.track!==tr.id||!(t>=c.start&&t<cend(c)))continue;
   if(c.tin?.t==='cross'&&c.tin.d>0&&t<c.start+c.tin.d){const pv=prevOf(c);if(pv)out.push([pv,{k:c.tin.k||'cross',q:clamp((t-c.start)/c.tin.d,0,1)}])}out.push([c,false])}}return out}
 function render(x,k,t){x.setTransform(k,0,0,k,0,0);if(P.alpha)x.clearRect(0,0,P.w,P.h);else{x.fillStyle=P.bg;x.fillRect(0,0,P.w,P.h)}for(const [c,n] of visibleAt(t))drawClip(x,c,t,n)}
-function fitView(){const v=$('view'),bw=v.clientWidth-20,bh=v.clientHeight-20;if(bw<=0||bh<=0)return;const s=Math.min(bw/P.w,bh/P.h);cv.style.width=Math.floor(P.w*s)+'px';cv.style.height=Math.floor(P.h*s)+'px';
+function fitView(){const v=$('view'),pd=MOB?6:20,bw=v.clientWidth-pd,bh=v.clientHeight-pd;if(bw<=0||bh<=0)return;const s=Math.min(bw/P.w,bh/P.h);cv.style.width=Math.floor(P.w*s)+'px';cv.style.height=Math.floor(P.h*s)+'px';
  vk=Math.min(1,P.w*s*Math.min(devicePixelRatio||1,matchMedia('(pointer:coarse)').matches?1.5:2)/P.w);const W=Math.max(2,Math.round(P.w*vk)),H=Math.max(2,Math.round(P.h*vk));if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}cv.classList.toggle('alpha',!!P.alpha);dirty=true}
 
 // ---------- on-canvas handles ----------
@@ -719,14 +719,14 @@ function engStart(){engStop();if(!AC)return;const t0=T,now=AC.currentTime+.06,sr
   if(off>=b.duration&&!c.loop){sn.disconnect();continue}sn.start(when,Math.max(0,off),L*spd(c));srcs.push(sn,g)}
  ENG={srcs,acT0:now,t0}}
 function sync(){const ids=new Set(P.clips.map(c=>c.id));for(const id in EL)if(!ids.has(id))dropEl(id);let mc=null,mi=1e9;
- for(const c of P.clips){const m=c.media&&med(c.media);if(!m||m.type==='image'||!URLS[m.id])continue;const e=cend(c)+tail(c),act=T>=c.start-(playing?.6:0)&&T<e;
+ for(const c of P.clips){const m=c.media&&med(c.media);if(!m||m.type==='image'||!URLS[m.id])continue;const e=cend(c)+tail(c),act=T>=c.start-(playing?MOB?2.5:.6:0)&&T<e;if(playing&&T<c.start&&T>=c.start-3&&pxOn(m))pxFrame(c,m,c.start);
   if(!act){const o=EL[c.id];if(o){o.warm=0;if(!o.el.paused)o.el.pause()}continue}
   if(playing&&pxOn(m))pxFrame(c,m,T);const eb=!!ENG&&BUF[m.id] instanceof AudioBuffer;if(playing&&ENG&&(m.type==='audio'?eb:pxOn(m)&&(eb||BUF[m.id]===null))){const o=EL[c.id];if(o&&!o.el.paused)o.el.pause();continue}
   const o=getEl(c),el=o.el,r=spd(c);if(el.playbackRate!==r){el.defaultPlaybackRate=r;el.playbackRate=r}if(el.loop!==!!c.loop)el.loop=!!c.loop;const exp=srcT(c,Math.max(T,c.start)),g=playing&&!eb?gainAt(c,T):0;
   if(o.g)o.g.gain.value=g;else el.volume=clamp(g*mvol(),0,1);
   if(playing&&T>=c.start){const ti=m.type==='video'&&!c.loop&&!trk(c.track).hide&&!el.seeking&&el.readyState>=3?P.tracks.findIndex(x=>x.id===c.track):-1;
    if(el.paused){if(Math.abs(el.currentTime-exp)>.05)el.currentTime=exp;el.play().catch(()=>{})}else if(ti>=0&&ti<mi&&T<cend(c)&&Math.abs(el.currentTime-exp)<1.5){mi=ti;if(!ENG)mc={c,el}}else if(Math.abs(el.currentTime-exp)>(MCLK&&MCLK.el===el?1.5:.3))el.currentTime=exp}
-  else{if(playing&&!o.warm&&el.readyState>=2){o.warm=1;el.play().then(()=>{if(!playing||T<c.start-.04)el.pause()}).catch(()=>{});continue}if(!el.paused)el.pause();if(!el.seeking&&el.paused&&Math.abs(el.currentTime-exp)>.4/P.fps)el.currentTime=Math.min(exp+.001,Math.max(0,(el.duration||1e9)-.001))}}MCLK=playing?mc:null}
+  else{if(playing&&!MOB&&!o.warm&&el.readyState>=2){o.warm=1;el.play().then(()=>{if(!playing||T<c.start-.04)el.pause()}).catch(()=>{});continue}if(!el.paused)el.pause();if(!el.seeking&&el.paused&&Math.abs(el.currentTime-exp)>.4/P.fps)el.currentTime=Math.min(exp+.001,Math.max(0,(el.duration||1e9)-.001))}}MCLK=playing?mc:null}
 function play(){if(playing)return stop();ensureAC();if(T>=totalDur()-.01)T=0;playing=true;playT0=T;playS=performance.now();engStart();$('bPlay').innerHTML=ICO.pause;$('bPlay').setAttribute('aria-label','Pause')}
 function stop(){playing=false;engStop();for(const id in EL)EL[id].el.pause();T=fq(T);$('bPlay').innerHTML=ICO.play;$('bPlay').setAttribute('aria-label','Play');dirty=true}
 function seek(t){T=clamp(t,0,Math.max(totalDur(),0));if(playing){playT0=T;playS=performance.now();MCLK=null;if(ENG)engStart();for(const id in EL){const c=clipBy(id);if(c&&T>=c.start&&T<cend(c))EL[id].el.currentTime=srcT(c,T)}}dirty=true}
@@ -1390,11 +1390,11 @@ $('bExport').onclick=()=>{const D=totalDur();$('eInfo').textContent=`${P.w} × $
 $('eGo').onclick=runExport;
 // ---------- preview proxies ----------
 const PX={},PXS={};let pxQ=Promise.resolve();
-function pxFrame(c,m,t){const X=PX[m.id];if(!X||!X.ready||!X.t.length)return null;const s=srcT(c,Math.max(t,c.start));let lo=0,hi=X.t.length-1;
+function pxFrame(c,m,t,loose){const X=PX[m.id];if(!X||!X.ready||!X.t.length)return null;const s=srcT(c,Math.max(t,c.start));let lo=0,hi=X.t.length-1;
  while(lo<hi){const md=(lo+hi+1)>>1;if(X.t[md]<=s+.004)lo=md;else hi=md-1}const now=performance.now();(X.need||(X.need=new Map())).set(c.id,[lo,now]);
  const N=Math.min(X.f.length,lo+30);for(let k=lo;k<N&&X.pend.size<8;k++){if(X.bm.has(k)||X.pend.has(k))continue;X.pend.add(k);createImageBitmap(X.f[k]).then(b=>{X.pend.delete(k);if(X.dead)return b.close?.();X.bm.set(k,b);dirty=true}).catch(()=>X.pend.delete(k))}
  const keep=[];for(const [id,v] of X.need){if(now-v[1]>1500)X.need.delete(id);else keep.push(v[0])}for(const k of X.bm.keys())if(!keep.some(l=>k>=l-8&&k<=l+70)){X.bm.get(k).close?.();X.bm.delete(k)}
- let best=null,bd=31;for(const [k,b] of X.bm){const d=k<=lo?lo-k:(k-lo)*1.5;if(d<bd){bd=d;best=b}}return best}
+ let best=null,bd=loose?1e9:31;for(const [k,b] of X.bm){const d=k<=lo?lo-k:(k-lo)*1.5;if(d<bd){bd=d;best=b}}return best}
 function pxQueue(m){if(m.type!=='video'||!m.w||Math.max(m.w,m.h)<=960||PX[m.id]||!('requestVideoFrameCallback' in HTMLVideoElement.prototype))return;PX[m.id]={ready:false,t:[],f:[],bm:new Map(),pend:new Set()};pxQ=pxQ.then(()=>pxMake(m)).catch(()=>{})}
 async function pxMake(m){const X=PX[m.id];if(!X||!med(m.id))return;
  try{const sv=await idbGet('blobs','px:'+m.id);if(sv&&sv.f?.length){X.t=Array.from(sv.t);X.f=sv.f;X.ready=true;PXS[m.id]='fast preview';renderBin();return}}catch(e){}
@@ -2558,7 +2558,7 @@ Object.assign(RU,{'Wobble (deg)':'Покачивание (°)','Snap wobble':'Р
 window.QPHANTOM=/^[\s.…!,-]*(продолжение следует|субтитры (сделал|создавал|делал|подогнал)[^.]*|редактор субтитров[^.]*|корректор[^.]*|спасибо за просмотр|thanks? (you )?for watching|to be continued|thank you\.?|you|bye\.?|\[?(music|музыка|silence|тишина)\]?|♪+)[\s.…!,-]*$/i;
 </script>
 <script>
-const APP_VER='1.3.7';
+const APP_VER='1.3.8';
 (()=>{const U=window.cocoaUpd;if(!U)return;
 const st=document.createElement('style');st.textContent=`.upB{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}.upB[hidden],#upBar[hidden]{display:none}
 .upH{display:flex;align-items:center;gap:8px;font-weight:600}.upDot{width:8px;height:8px;border-radius:50%;background:#e5484d;flex:none}.upV{color:var(--mute);font-weight:400;font-size:12px}
@@ -2909,7 +2909,7 @@ async function dFetch(url,o={}){
  if(o.prog)return new Promise((ok,no)=>{const x=new XMLHttpRequest();x.open(o.method||'GET',url);for(const k in o.headers||{})x.setRequestHeader(k,o.headers[k]);x.responseType='blob';const pg=e=>e.lengthComputable&&o.prog(e.loaded/e.total);x.upload.onprogress=pg;x.onprogress=pg;
   x.onload=()=>ok({ok:x.status<300,status:x.status,loc:x.getResponseHeader('location'),json:async()=>JSON.parse(await x.response.text()),blob:async()=>x.response});x.onerror=()=>no(Error(L('Network error','Ошибка сети')));x.send(o.body??null)});
  const r=await fetch(url,o);return{ok:r.ok,status:r.status,loc:r.headers.get('location'),json:()=>r.json(),blob:()=>r.blob()}}
-const gis=()=>window.google?.accounts?.oauth2?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.onload=ok;s.onerror=()=>no(Error('offline'));document.head.appendChild(s)});
+const gis=()=>window.google?.accounts?.oauth2?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.onload=ok;s.onerror=()=>no(Error(L('No internet connection','Нет подключения к интернету')));document.head.appendChild(s)});
 async function webTok(p){
  if(p==='g'){await gis();return new Promise((ok,no)=>google.accounts.oauth2.initTokenClient({client_id:DRIVE.g.id,scope:'https://www.googleapis.com/auth/drive.file',callback:r=>r.access_token?ok({at:r.access_token,exp:Date.now()+r.expires_in*1e3}):no(Error(r.error||'denied')),error_callback:e=>no(Error(e.type||'denied'))}).requestAccessToken())}
  const w=open('https://oauth.yandex.ru/authorize?'+new URLSearchParams({response_type:'token',client_id:DRIVE.y.id,redirect_uri:location.origin+location.pathname}),'ydisk','width=520,height=640');
@@ -2923,36 +2923,95 @@ async function tok(p,force){
  return keep(p,t)}
 function keep(p,t){if(!t?.at)throw Error(L('Sign-in failed','Не удалось войти'));t={at:t.at,rt:t.rt,exp:t.exp,sc:2};T[p]=t;idbPut('kv','drv-'+p,t);return t.at}
 async function api(p,url,o={},re){const at=await tok(p,re);const r=await dFetch(url,{...o,headers:{...(o.headers||{}),Authorization:(p==='g'?'Bearer ':'OAuth ')+at}});
- if(r.status===401&&!re)return api(p,url,o,1);if(!r.ok&&r.status!==308)throw Error('HTTP '+r.status);return r}
-const GA='https://www.googleapis.com/',YA='https://cloud-api.yandex.net/v1/disk/resources',SD='supportsAllDrives=true';
+ if(r.status===401&&!re)return api(p,url,o,1);if(!r.ok&&r.status!==308){const e=Error('HTTP '+r.status);e.status=r.status;throw e}return r}
+const GA='https://www.googleapis.com/',YA='https://cloud-api.yandex.net/v1/disk/resources',SD='supportsAllDrives=true',GF='application/vnd.google-apps.folder',MF='CocoaCut media';
 const FD={};
 async function fold(p){if(!(p in FD))FD[p]=await idbGet('kv','drv-fold-'+p).catch(()=>null)||null;return FD[p]}
 function setFold(p,f){FD[p]=f;idbPut('kv','drv-fold-'+p,f)}
-const js=src=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(Error('offline'));document.head.appendChild(s)});
-async function gPick(kind){
+const js=src=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(Error(L('No internet connection','Нет подключения к интернету')));document.head.appendChild(s)});
+async function gPick(kind,parent){
  const meta=id=>api('g',GA+'drive/v3/files/'+id+'?'+SD+'&fields=id,name,mimeType').then(r=>r.json());
  if(E){const c=await E.auth('g',{},'',kind);keep('g',c);return Promise.all((c.picked||[]).map(meta))}
  if(!DRIVE.g.key)throw Error(L('The Google file picker isn’t set up yet.','Выбор файлов Google ещё не настроен.'));
  const at=await tok('g');if(!window.gapi)await js('https://apis.google.com/js/api.js');await new Promise(r=>gapi.load('picker',r));
- const G=google.picker,F='application/vnd.google-apps.folder',vw=v=>{v.setIncludeFolders?.(true);v.setSelectFolderEnabled(kind==='folder');if(kind==='folder')v.setMimeTypes(F);return v};
- return new Promise(ok=>{const b=new G.PickerBuilder().addView(vw(new G.DocsView(G.ViewId.DOCS))).addView(vw(new G.DocsView(G.ViewId.DOCS).setOwnedByMe(false))).addView(vw(new G.DocsView(G.ViewId.DOCS).setEnableDrives(true)))
-  .setOAuthToken(at).setDeveloperKey(DRIVE.g.key).setAppId(DRIVE.g.app).setLocale(LANG==='ru'?'ru':'en').setCallback(d=>{if(d.action===G.Action.PICKED)ok(d.docs.map(x=>({id:x.id,name:x.name,mimeType:x.mimeType})));else if(d.action===G.Action.CANCEL)ok([])});
+ const G=google.picker,vw=v=>{v.setIncludeFolders?.(true);v.setSelectFolderEnabled(kind==='folder');if(kind==='folder')v.setMimeTypes(GF);return v};
+ return new Promise(ok=>{const b=new G.PickerBuilder();
+  if(parent)b.addView(new G.DocsView(G.ViewId.DOCS).setParent(parent));else b.addView(vw(new G.DocsView(G.ViewId.DOCS))).addView(vw(new G.DocsView(G.ViewId.DOCS).setOwnedByMe(false))).addView(vw(new G.DocsView(G.ViewId.DOCS).setEnableDrives(true)));
+  b.setOAuthToken(at).setDeveloperKey(DRIVE.g.key).setAppId(DRIVE.g.app).setLocale(LANG==='ru'?'ru':'en').setCallback(d=>{if(d.action===G.Action.PICKED)ok(d.docs.map(x=>({id:x.id,name:x.name,mimeType:x.mimeType})));else if(d.action===G.Action.CANCEL)ok([])});
   if(kind!=='folder')b.enableFeature(G.Feature.MULTISELECT_ENABLED);b.build().setVisible(true)})}
 const yBase=async()=>(await fold('y'))?.id||'app:/',yJoin=(a,n)=>a+(a.endsWith('/')?'':'/')+n;
+const gUp=async(meta,b,id,pg)=>{const r=await api('g',GA+'upload/drive/v3/files'+(id?'/'+id:'')+'?uploadType=resumable&'+SD,{method:id?'PATCH':'POST',headers:{'Content-Type':'application/json; charset=UTF-8'},body:JSON.stringify(id?{}:meta)});
+ if(!r.loc)throw Error('No upload link');const u=await dFetch(r.loc,{method:'PUT',body:b,prog:pg});if(!u.ok)throw Error('HTTP '+u.status);return(await u.json()).id||id};
+const yUp=async(path,b,pg)=>{const h=(await(await api('y',YA+'/upload?overwrite=true&path='+encodeURIComponent(path))).json()).href;const u=await dFetch(h,{method:'PUT',body:b,prog:pg});if(!u.ok)throw Error('HTTP '+u.status);return path};
 const D={
  g:{list:async()=>{const f=await fold('g');return(await(await api('g',GA+'drive/v3/files?'+new URLSearchParams({q:(f?`'${f.id}' in parents and `:'')+"name contains '.ccut' and trashed=false",fields:'files(id,name,modifiedTime,size,lastModifyingUser(displayName,me))',orderBy:'modifiedTime desc',pageSize:200,supportsAllDrives:true,includeItemsFromAllDrives:true}))).json()).files.map(f=>({id:f.id,name:f.name,t:f.modifiedTime,size:+f.size||0,by:f.lastModifyingUser&&!f.lastModifyingUser.me?f.lastModifyingUser.displayName:''}))},
   stat:async id=>(await(await api('g',GA+'drive/v3/files/'+id+'?'+SD+'&fields=modifiedTime')).json()).modifiedTime,
-  get:async(f,pg)=>(await api('g',GA+'drive/v3/files/'+f.id+'?alt=media&'+SD,{prog:pg})).blob(),
-  put:async(name,b,id,pg)=>{const f=await fold('g');const r=await api('g',GA+'upload/drive/v3/files'+(id?'/'+id:'')+'?uploadType=resumable&'+SD,{method:id?'PATCH':'POST',headers:{'Content-Type':'application/json; charset=UTF-8'},body:JSON.stringify(id?{}:{name,...(f?{parents:[f.id]}:{})})});
-   if(!r.loc)throw Error('No upload link');const u=await dFetch(r.loc,{method:'PUT',body:b,prog:pg});if(!u.ok)throw Error('HTTP '+u.status)}},
- y:{list:async()=>{try{return(await(await api('y',YA+'?'+new URLSearchParams({path:await yBase(),limit:500,sort:'-modified'}))).json())._embedded.items.filter(i=>i.type==='file'&&/\.ccut$/i.test(i.name)).map(i=>({id:i.path,name:i.name,t:i.modified,size:i.size||0}))}catch(e){if(/404/.test(e.message))return[];throw e}},
+  get:async(id,pg)=>(await api('g',GA+'drive/v3/files/'+id+'?alt=media&'+SD,{prog:pg})).blob(),
+  put:async(name,b,id,pg)=>{const f=await fold('g');return gUp({name,...(f?{parents:[f.id]}:{})},b,id,pg)},
+  mdir:async()=>{const f=await fold('g'),par=f?f.id:'root';const l=(await(await api('g',GA+'drive/v3/files?'+new URLSearchParams({q:`'${par}' in parents and name='${MF}' and mimeType='${GF}' and trashed=false`,fields:'files(id)',supportsAllDrives:true,includeItemsFromAllDrives:true}))).json()).files;
+   if(l.length)return l[0].id;return(await(await api('g',GA+'drive/v3/files?'+SD,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:MF,mimeType:GF,parents:[par]})})).json()).id},
+  mput:async(dir,name,b,pg)=>gUp({name,parents:[dir]},b,null,pg)},
+ y:{list:async()=>{try{return(await(await api('y',YA+'?'+new URLSearchParams({path:await yBase(),limit:500,sort:'-modified'}))).json())._embedded.items.filter(i=>i.type==='file'&&/\.ccut$/i.test(i.name)).map(i=>({id:i.path,name:i.name,t:i.modified,size:i.size||0}))}catch(e){if(e.status===404)return[];throw e}},
   stat:async id=>(await(await api('y',YA+'?'+new URLSearchParams({path:id,fields:'modified'}))).json()).modified,
   dirs:async path=>(await(await api('y',YA+'?'+new URLSearchParams({path,limit:500,sort:'name'}))).json())._embedded.items.filter(i=>i.type==='dir').map(i=>({id:i.path,name:i.name})),
-  get:async(f,pg)=>{const h=(await(await api('y',YA+'/download?path='+encodeURIComponent(f.id))).json()).href;return(await dFetch(h,{prog:pg})).blob()},
-  put:async(name,b,id,pg)=>{const h=(await(await api('y',YA+'/upload?overwrite=true&path='+encodeURIComponent(yJoin(await yBase(),name)))).json()).href;const u=await dFetch(h,{method:'PUT',body:b,prog:pg});if(!u.ok)throw Error('HTTP '+u.status)}}};
+  get:async(id,pg)=>{const h=(await(await api('y',YA+'/download?path='+encodeURIComponent(id))).json()).href;return(await dFetch(h,{prog:pg})).blob()},
+  put:async(name,b,id,pg)=>yUp(yJoin(await yBase(),name),b,pg),
+  mdir:async()=>{const d=yJoin(await yBase(),MF);try{await api('y',YA+'?path='+encodeURIComponent(d),{method:'PUT'})}catch(e){if(e.status!==409)throw e}return d},
+  mput:async(dir,name,b,pg)=>{const path=yJoin(dir,name);try{const j=await(await api('y',YA+'?'+new URLSearchParams({path,fields:'size'}))).json();if(j.size===b.size)return path}catch(e){}return yUp(path,b,pg)}}};
+
+// media cache on this device
+const CK='cm:',CI='cm-idx',CAP=3e9;
+async function cGet(id){try{const b=await idbGet('kv',CK+id);if(b){const ix=await idbGet('kv',CI)||{};if(ix[id]){ix[id].t=Date.now();idbPut('kv',CI,ix)}}return b||null}catch(e){return null}}
+async function cPut(id,b){try{await idbPut('kv',CK+id,b);const ix=await idbGet('kv',CI)||{};ix[id]={t:Date.now(),s:b.size};let tot=Object.values(ix).reduce((a,x)=>a+x.s,0);for(const [k] of Object.entries(ix).sort((a,b)=>a[1].t-b[1].t)){if(tot<=CAP)break;if(k===id)continue;tot-=ix[k].s;delete ix[k];idbDel('kv',CK+k)}idbPut('kv',CI,ix)}catch(e){}}
+const ext=n=>(String(n||'').match(/\.[a-z0-9]{1,5}$/i)||[''])[0].toLowerCase();
+const MAG='CCLD1\n';
+
+// upload in the background
+const pill=document.createElement('div');pill.id='cupl';pill.hidden=true;document.body.appendChild(pill);
+const pst=document.createElement('style');pst.textContent='#cupl{position:fixed;left:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:95;background:var(--panel2,#252525);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12.5px;display:flex;gap:10px;align-items:center;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:calc(100vw - 24px)}#cupl i{display:block;width:90px;height:4px;border-radius:2px;background:var(--line);overflow:hidden;flex:none}#cupl i b{display:block;height:100%;width:0;background:var(--pri,#f2f2f2)}#cupl button{padding:3px 8px;font-size:12px}@media (max-width:860px){#cupl{bottom:calc(78px + env(safe-area-inset-bottom,0px))}}';document.head.appendChild(pst);
+let busy=null,again=null;
+const showPill=(t,v,btn)=>{pill.hidden=false;pill.innerHTML='<span></span>'+(v!=null?'<i><b></b></i>':'');pill.firstChild.textContent=t;if(v!=null)pill.querySelector('b').style.width=Math.round(v*100)+'%';if(btn){const b=document.createElement('button');b.textContent=btn[0];b.onclick=btn[1];pill.appendChild(b)}};
+async function upload(p,name,fileId){
+ const m=P.media.filter(m=>BLOB[m.id]),refs=Object.assign({},P.cloud?.refs||{}),dirKey=p+'dir';
+ const need=m.filter(x=>!refs[x.id]?.[p]),total=need.reduce((a,x)=>a+BLOB[x.id].size,0)+1;let done=0;
+ const t=L('Uploading to ','Загрузка в ')+DN[p]+'…',pg=n=>showPill(t,Math.min(1,(done+n)/total));pg(0);
+ let dir=P.cloud?.[dirKey];if(need.length&&!dir)dir=await D[p].mdir();
+ for(const x of need){const b=BLOB[x.id],s=b.size;refs[x.id]={...(refs[x.id]||{}),[p]:await D[p].mput(dir,x.id+ext(x.name),b,v=>pg(v*s))};done+=s;cPut(x.id,b)}
+ for(const x of P.media)if(BLOB[x.id])x.size=BLOB[x.id].size;
+ const cl={...(P.cloud||{}),refs,[dirKey]:dir||P.cloud?.[dirKey],p,name};delete cl.id;delete cl.t;
+ const body=new Blob([MAG+JSON.stringify(Object.assign({},P,{cloud:cl}))]);
+ const id=await D[p].put(name,body,fileId,null);
+ const tm=await D[p].stat(id).catch(()=>'');P.cloud={...cl,id,t:tm};markClean();return id}
+async function cloudSave(p,name,fileId){
+ if(busy){again=[p,name,fileId];showPill(L('Will upload again when this one finishes…','Загружу ещё раз после текущей загрузки…'),null);return}
+ busy=1;await window.recFlush?.();
+ try{await upload(p,name,fileId);showPill(L('Saved to ','Сохранено: ')+DN[p]+' · '+name,null);setTimeout(()=>{if(!busy)pill.hidden=true},4000)}
+ catch(e){showPill(L('Upload failed: ','Не удалось загрузить: ')+(e.message||e),null,[L('Retry','Повторить'),()=>cloudSave(p,name,fileId)])}
+ finally{busy=null;if(again){const a=again;again=null;cloudSave(...a)}}}
+window.addEventListener('beforeunload',e=>{if(busy){e.preventDefault();e.returnValue=''}});
+
+// open a cloud project: small project file + media from the cache or the cloud
+async function openCloud(txt,pv0,fileId,tm,prog){
+ const p0=JSON.parse(txt.slice(MAG.length)),refs=p0.cloud?.refs||{},parts=[],miss=[];
+ const todo=[];for(const m of p0.media){const c=await cGet(m.id);if(c&&(!m.size||c.size===m.size))parts.push(c);else{parts.push(null);todo.push(m)}}
+ const total=todo.reduce((a,m)=>a+(m.size||1),0)||1;let done=0;
+ for(const m of todo){const r=refs[m.id]||{},p=r[pv0]?pv0:r.g?'g':r.y?'y':null;if(!p){miss.push(m);continue}
+  try{const b=await D[p].get(r[p],v=>prog&&prog((done+v*(m.size||1))/total));parts[p0.media.indexOf(m)]=b;cPut(m.id,b)}catch(e){if(e.status===403||e.status===404)miss.push(m);else throw e}done+=m.size||1}
+ if(miss.length){const e=Error(L(miss.length+' clip(s) couldn’t be downloaded.',miss.length+' клип(ов) не удалось скачать.'));e.miss=miss;e.p0=p0;throw e}
+ for(let i=0;i<p0.media.length;i++)p0.media[i].size=parts[i].size;
+ p0.cloud={...(p0.cloud||{}),p:pv0,id:fileId,t:tm};
+ const hb=new TextEncoder().encode(JSON.stringify(p0)),len=new Uint8Array(4);new DataView(len.buffer).setUint32(0,hb.length);
+ await OP(new File([new TextEncoder().encode('CCUT1'),len,hb,...parts],p0.cloud.name||'project.ccut'));P.cloud=p0.cloud;markClean()}
+const OP=openProject;
+openProject=async function(f){const h=await f.slice(0,6).text();
+ if(h===MAG.slice(0,6)){try{const txt=await f.text(),j=JSON.parse(txt.slice(MAG.length));await openCloud(txt,j.cloud?.p||'g',j.cloud?.id,j.cloud?.t)}catch(e){toast(e.message||String(e))}return}
+ await OP(f);if(P.cloud){delete P.cloud;markClean()}};
+const QS=window.quickSave;
+if(QS)window.quickSave=async(...a)=>{if(P.cloud?.p&&P.cloud.id){const c=P.cloud;try{const tm=await D[c.p].stat(c.id);if(c.t&&tm&&tm!==c.t&&!confirm(L('Someone changed “'+c.name+'” in the cloud after you opened it. Replace their version with yours?','Кто-то изменил «'+c.name+'» в облаке после того, как вы его открыли. Заменить их версию вашей?')))return}catch(e){}return cloudSave(c.p,c.name,c.id)}return QS(...a)};
+
 const st=document.createElement('style');st.textContent='#drv{z-index:97}#drv .box{width:min(480px,100%);display:flex;flex-direction:column;gap:10px}#drv .tabs{display:flex;gap:6px}#drv .tabs .on{background:var(--acc,#4a4a4a);color:#fff}#drv ul{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}#drv li{display:flex;justify-content:space-between;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer}#drv li:hover{background:rgba(127,127,127,.15)}#drv li small{color:var(--mute);white-space:nowrap}#drv .msg{color:var(--mute);margin:0}#drv .row{display:flex;gap:6px;align-items:center}#drv .row input{flex:1}#drv .fd{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px}#drv .fd span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#drv .fd small{display:block;color:var(--mute)}#drv .pb{height:6px;border-radius:3px;background:var(--panel2,#252525);overflow:hidden}#drv .pb i{display:block;height:100%;width:0;background:var(--pri,#f2f2f2);transition:width .2s}';document.head.appendChild(st);
 const M=document.createElement('div');M.id='drv';M.className='modal';M.hidden=true;document.body.appendChild(M);
-let mode,pv,ybr=null,files=[],OPN=null;try{pv=localStorage.getItem('cc-drv')||'g'}catch(e){pv='g'}
+let mode,pv,ybr=null,files=[];try{pv=localStorage.getItem('cc-drv')||'g'}catch(e){pv='g'}
 const kb=n=>n>1e6?(n/1e6).toFixed(1)+' MB':Math.ceil(n/1e3)+' KB',q=s=>M.querySelector(s);
 const msg=t=>{const m=q('.msg');if(m)m.textContent=t};
 const bar=(t,v)=>{const b=q('.pb');if(!b)return;b.hidden=v==null;b.firstChild.style.width=(v||0)*100+'%';msg(v==null?t:t+' '+Math.round(v*100)+'%')};
@@ -2966,27 +3025,31 @@ async function ui(){
  if(ybr!==null)return yBrowse();
  fs.innerHTML='';fs.append(f?f.name:pv==='g'?L('My Drive','Мой диск'):L('Apps / CocoaCut (only you)','Приложения / CocoaCut (только вы)'));const sm=document.createElement('small');sm.textContent=f?L('Shared with everyone who has access to this folder','Видят все, у кого есть доступ к этой папке'):L('Pick a shared folder to work together','Выберите общую папку для совместной работы');fs.prepend(Object.assign(document.createElement('small'),{textContent:L('Folder','Папка')}));fs.append(sm);
  fb.textContent=L('Change…','Изменить…');rb.hidden=!f;rb.onclick=()=>{setFold(pv,null);ui()};
- fb.onclick=async()=>{if(pv==='y'){ybr='disk:/';return ui()}try{const r=(await gPick('folder')).find(x=>x.mimeType==='application/vnd.google-apps.folder');if(r){setFold('g',{id:r.id,name:r.name});ui()}}catch(e){fail(e)}};
+ fb.onclick=async()=>{if(pv==='y'){ybr='disk:/';return ui()}try{const r=(await gPick('folder')).find(x=>x.mimeType===GF);if(r){setFold('g',{id:r.id,name:r.name});ui()}}catch(e){fail(e)}};
  const bb=q('[data-b]');if(pv==='g'){bb.hidden=false;bb.textContent=L('Find in Google Drive…','Найти в Google Диске…');bb.onclick=async()=>{try{const r=(await gPick('file')).filter(x=>/\.ccut$/i.test(x.name));if(!r.length)return;if(mode==='open')return get({id:r[0].id,name:r[0].name});load()}catch(e){fail(e)}}}
- const inp=q('input');if(inp)inp.value=safeName()+'.ccut';const sb=q('[data-s]');if(sb)sb.onclick=()=>save(inp.value);load()}
+ const inp=q('input');if(inp)inp.value=P.cloud?.name||safeName()+'.ccut';const sb=q('[data-s]');if(sb)sb.onclick=()=>save(inp.value);load()}
 async function yBrowse(){const fs=q('.fd span'),fb=q('[data-f]'),ul=q('ul');fs.textContent=ybr.replace(/^disk:/,'')||'/';fb.textContent=L('Use this folder','Выбрать эту папку');
  fb.onclick=()=>{setFold('y',ybr==='disk:/'?{id:'disk:/',name:L('Disk root','Корень Диска')}:{id:ybr,name:ybr.split('/').pop()});ybr=null;ui()};
  msg(L('Loading…','Загрузка…'));try{const ds=await D.y.dirs(ybr);msg(ds.length?L('Shared folders show up here once you accept the invite.','Общие папки появятся здесь, когда вы примете приглашение.'):L('No folders here.','Тут нет папок.'));
   const add=(n,go)=>{const li=document.createElement('li');li.textContent=n;li.onclick=()=>{ybr=go;ui()};ul.appendChild(li)};
-  if(ybr!=='disk:/')add('← '+L('Back','Назад'),ybr.replace(/\/[^/]+\/?$/,'')||'disk:/');for(const d of ds)add(d.name,d.id)}catch(e){fail(e)}}
+  if(ybr!=='disk:/')add('← '+L('Back','Назад'),ybr.replace(/\/[^/]+\/?$/,'')||'disk:/');for(const d of ds)if(d.name!==MF)add(d.name,d.id)}catch(e){fail(e)}}
 async function load(){const ul=q('ul'),p=pv;msg(L('Connecting…','Подключение…'));
  try{files=await D[p].list();if(p!==pv||ybr!==null)return;ul.innerHTML='';msg(files.length?'':L('No CocoaCut projects here yet.','Здесь пока нет проектов CocoaCut.')+(p==='g'&&mode==='open'?' '+L('If a teammate added one, use “Find in Google Drive”.','Если проект добавил коллега, нажмите «Найти в Google Диске».'):''));
   for(const f of files){const li=document.createElement('li');li.innerHTML='<span></span><small></small>';li.firstChild.textContent=f.name;li.lastChild.textContent=(f.by?f.by+' · ':'')+(f.t?new Date(f.t).toLocaleDateString()+' · ':'')+kb(f.size);
    li.onclick=()=>mode==='save'?(q('input').value=f.name):get(f);ul.appendChild(li)}}
  catch(e){if(p===pv)msg(L('Couldn’t reach ','Не удалось подключиться к ')+DN[p]+': '+e.message)}}
-async function get(f){const t=L('Downloading ','Скачивание ')+f.name+'…';bar(t,0);try{const tm=f.t||await D[pv].stat(f.id).catch(()=>'');const b=await D[pv].get(f,v=>bar(t,v));M.hidden=true;await openProject(new File([b],f.name));OPN={p:pv,id:f.id,t:tm}}catch(e){bar(L('Couldn’t open: ','Не удалось открыть: ')+e.message)}}
+async function get(f){const t=L('Downloading ','Скачивание ')+f.name+'…';bar(t,0);
+ try{const tm=f.t||await D[pv].stat(f.id).catch(()=>'');const b=await D[pv].get(f.id,v=>bar(t,v));const h=await b.slice(0,6).text();
+  if(h===MAG.slice(0,6)){bar(t,0);await openCloud(await b.text(),pv,f.id,tm,v=>bar(t,v));M.hidden=true;return}
+  M.hidden=true;await OP(new File([b],f.name));P.cloud={p:pv,id:f.id,t:tm,name:f.name,refs:{}};markClean()}
+ catch(e){if(e.miss&&pv==='g')return askAccess(f,e);bar(L('Couldn’t open: ','Не удалось открыть: ')+e.message)}}
+function askAccess(f,e){const dir=e.p0.cloud?.gdir;bar(L('Google needs your OK before CocoaCut can use '+e.miss.length+' clip(s) a teammate uploaded. Press “Allow access” and select all files in the “CocoaCut media” folder.','Google просит разрешения, прежде чем CocoaCut сможет взять '+e.miss.length+' клип(ов), загруженных коллегой. Нажмите «Разрешить доступ» и выделите все файлы в папке «CocoaCut media».'));
+ const bb=q('[data-b]');bb.hidden=false;bb.textContent=L('Allow access','Разрешить доступ');bb.onclick=async()=>{try{await gPick('file',dir);get(f)}catch(x){fail(x)}}}
 async function save(n){n=(n||'').trim().replace(/[\\/:*?"<>|]+/g,'_');if(!n)return;if(!/\.ccut$/i.test(n))n+='.ccut';
- const ex=files.find(f=>f.name===n);
- if(ex){const tm=await D[pv].stat(ex.id).catch(()=>ex.t),mine=OPN&&OPN.p===pv&&OPN.id===ex.id;
-  if(!mine||tm!==OPN.t){if(!confirm(mine?L('Someone changed “'+n+'” after you opened it. Replace their version with yours?','Кто-то изменил «'+n+'» после того, как вы его открыли. Заменить их версию вашей?'):L('“'+n+'” already exists in this folder. Replace it?','«'+n+'» уже есть в этой папке. Заменить?')))return}}
- const t=L('Uploading…','Загрузка…');bar(t,0);M.querySelectorAll('button').forEach(b=>b.disabled=true);
- try{await D[pv].put(n,projBlob(),ex?.id,v=>bar(t,v));markClean();files=await D[pv].list().catch(()=>files);const nf=files.find(f=>f.name===n);if(nf)OPN={p:pv,id:nf.id,t:nf.t};M.hidden=true;toast(L('Uploaded to ','Загружено: ')+DN[pv]+' · '+n)}
- catch(e){bar(L('Couldn’t upload: ','Не удалось загрузить: ')+e.message)}finally{M.querySelectorAll('button').forEach(b=>b.disabled=false)}}
+ const ex=files.find(f=>f.name===n),p=pv;
+ if(ex){const tm=await D[p].stat(ex.id).catch(()=>ex.t),mine=P.cloud&&P.cloud.p===p&&P.cloud.id===ex.id;
+  if(!mine||tm!==P.cloud.t){if(!confirm(mine?L('Someone changed “'+n+'” after you opened it. Replace their version with yours?','Кто-то изменил «'+n+'» после того, как вы его открыли. Заменить их версию вашей?'):L('“'+n+'” already exists in this folder. Replace it?','«'+n+'» уже есть в этой папке. Заменить?')))return}}
+ M.hidden=true;cloudSave(p,n,ex?.id)}
 window.driveDlg=m=>{mode=m;ybr=null;M.hidden=false;ui()};
 const sa=document.getElementById('bSaveAs');if(sa){const a=document.createElement('button'),b=document.createElement('button');a.id='bDrvO';a.textContent=L('Open from cloud…','Открыть из облака…');b.id='bDrvS';b.textContent=L('Upload to cloud…','Загрузить в облако…');a.onclick=()=>driveDlg('open');b.onclick=()=>driveDlg('save');sa.after(a,b)}
 const so=document.getElementById('stOpen');if(so){const c=document.createElement('button');c.textContent=L('Open from cloud…','Открыть из облака…');c.onclick=()=>{document.getElementById('stX')?.click();driveDlg('open')};so.after(c)}
@@ -3019,6 +3082,67 @@ const b=document.createElement('button');b.id='bTko';b.className='ic';b.title=L(
 b.innerHTML='<svg viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M15 9.5v4M15 15.5v.01M9 17.5h3"/></svg>';
 b.onclick=()=>{O.hidden=!O.hidden;b.classList.toggle('on',!O.hidden);fit();if(!O.hidden&&cw.clientWidth/cw.clientHeight>.6)toast(L('Tip: switch the canvas to 9:16 for TikTok','Совет: для TikTok выбери холст 9:16'))};
 full.before(b);
+})();
+</script>
+<script>
+(()=>{
+const mo=document.getElementById('more'),sv=document.getElementById('bSave');if(!mo)return;
+const st=document.createElement('style');st.textContent='@media (max-width:860px){#pV{grid-area:1/3;justify-self:start;width:auto}#cUR{grid-area:1/3;justify-self:end}body.vert #view{height:max(44vh,calc(100vh - 300px));height:max(44vh,calc(100dvh - 300px - env(safe-area-inset-bottom,0px)))}}@media (max-width:700px){#drv .fd span{white-space:normal}#drv .fd{flex-wrap:wrap}#drv .row:last-child{flex-wrap:wrap}}';document.head.appendChild(st);
+const add=(c,en,ru)=>{if(!document.getElementById(c))return;const b=document.createElement('button');b.dataset.c=c;b.textContent=L(en,ru);return b};
+const items=[add('bDrvO','Open from cloud…','Открыть из облака…'),add('bDrvS','Upload to cloud…','Загрузить в облако…'),add('bPresets','Creator presets','Пресеты для блогеров'),add('bTko','TikTok overlay','Интерфейс TikTok поверх видео'),add('bPlugins','Plugins…','Плагины…')].filter(Boolean);
+const at=mo.querySelector('[data-c="bSave"]');at?at.after(...items):mo.append(...items);
+})();
+</script>
+<script>
+(()=>{
+const st=document.createElement('style');st.textContent='button{text-align:center}.ic2,button:has(>svg+span){display:inline-flex;align-items:center;justify-content:center;gap:5px}.ic2 svg,button:has(>svg+span)>svg{flex:none}@media (max-width:860px){.mo.ic2:not([hidden]),button.mo:not([hidden]):has(>svg+span){display:inline-flex!important;align-items:center;justify-content:center;gap:5px}}#bImp.impB{display:inline-flex;align-items:center;justify-content:center;background:var(--pri);color:var(--prifg);border-color:var(--pri);padding:7px 16px;border-radius:8px}#bImp.impB svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}#bImp.impB:hover{filter:brightness(.92)}';document.head.appendChild(st);
+const im=document.getElementById('bImp');if(im){im.className='impB';im.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';const t=L('Import media','Импорт медиа');im.title=t;im.setAttribute('aria-label',t)}
+const tm=document.querySelector('#tabs .tmain'),hq=tm&&tm.querySelector('[data-a=quick]'),rv=document.getElementById('mRev');
+if(hq&&rv){const top=document.createElement('button');top.id='mHelp';top.className='mo ic2';top.innerHTML=hq.innerHTML;top.onclick=()=>hq.click();rv.before(top);
+ const tb=document.createElement('button');tb.id='tRev';tb.innerHTML=rv.innerHTML;tb.querySelector('svg')?.removeAttribute('class');tb.onclick=()=>rv.click();hq.before(tb);hq.style.display='none';
+ st.textContent+='#mRev{display:none!important}body.rev #mHelp{display:none!important}body.qOn #mHelp{background:var(--pri);color:var(--prifg)}'}
+})();
+</script>
+<script>
+// sound from MP4/MOV files: read only the AAC frames and decode them as ADTS (light on memory, works where the browser can't read the container)
+(()=>{
+const rd=async(b,s,e)=>new DataView(await b.slice(s,e).arrayBuffer());
+const str=(v,o)=>String.fromCharCode(v.getUint8(o),v.getUint8(o+1),v.getUint8(o+2),v.getUint8(o+3));
+function kids(v,s,e){const out=[];let o=s;while(o+8<=e){let n=v.getUint32(o),h=8;const t=str(v,o+4);if(n===1){n=Number(v.getBigUint64(o+8));h=16}else if(n===0)n=e-o;if(n<h||o+n>e)break;out.push({t,s:o+h,e:o+n});o+=n}return out}
+const find=(v,s,e,t)=>kids(v,s,e).find(k=>k.t===t);
+const path=(v,b,ts)=>{let c=b;for(const t of ts){c=c&&find(v,c.s,c.e,t);if(!c)return null}return c};
+async function isoAudio(blob,ctx){
+ const h=await rd(blob,0,8);if(str(h,4)!=='ftyp')return null;
+ let o=0,moov=null;while(o<blob.size){const v=await rd(blob,o,o+16);let n=v.getUint32(0),hd=8;const t=str(v,4);if(n===1){n=Number(v.getBigUint64(8));hd=16}else if(n===0)n=blob.size-o;if(n<8)break;if(t==='moov'){moov={o,n};break}o+=n}
+ if(!moov||moov.n>64e6)return null;
+ const v=await rd(blob,moov.o,moov.o+moov.n),root={s:8,e:moov.n};
+ for(const tk of kids(v,root.s,root.e).filter(k=>k.t==='trak')){
+  const hd=path(v,tk,['mdia','hdlr']);if(!hd||str(v,hd.s+8)!=='soun')continue;
+  const md=path(v,tk,['mdia','mdhd']),ver=v.getUint8(md.s),scale=v.getUint32(md.s+(ver?20:12));
+  const st=path(v,tk,['mdia','minf','stbl']);if(!st)continue;
+  const sd=find(v,st.s,st.e,'stsd');if(!sd)continue;const en=sd.s+8;if(str(v,en+4)!=='mp4a')continue;
+  const sv=v.getUint16(en+16);const es=kids(v,en+36+(sv===1?16:sv===2?36:0),en+v.getUint32(en)).find(k=>k.t==='esds')||(()=>{const w=kids(v,en+36+(sv===1?16:sv===2?36:0),en+v.getUint32(en)).find(k=>k.t==='wave');return w&&find(v,w.s,w.e,'esds')})();if(!es)continue;
+  let p=es.s+4,asc=null;const len=()=>{let n=0,b;do{b=v.getUint8(p++);n=n<<7|b&127}while(b&128);return n};
+  while(p<es.e){const tag=v.getUint8(p++),n=len();if(tag===3){p+=3;continue}if(tag===4){p+=13;continue}if(tag===5){asc=[v.getUint8(p),v.getUint8(p+1)];break}p+=n}
+  if(!asc)continue;const ot=asc[0]>>3,fi=(asc[0]&7)<<1|asc[1]>>7,ch=asc[1]>>3&15;if(ot<1||ot>4||fi>12)continue;
+  const sz=find(v,st.s,st.e,'stsz'),sc=find(v,st.s,st.e,'stsc'),co=find(v,st.s,st.e,'stco')||find(v,st.s,st.e,'co64');if(!sz||!sc||!co)continue;
+  const fix=v.getUint32(sz.s+4),cnt=v.getUint32(sz.s+8),size=i=>fix||v.getUint32(sz.s+12+i*4);
+  const nc=v.getUint32(co.s+4),c64=co.t==='co64',off=i=>c64?Number(v.getBigUint64(co.s+8+i*8)):v.getUint32(co.s+8+i*4);
+  const ns=v.getUint32(sc.s+4),runs=[];for(let i=0;i<ns;i++)runs.push([v.getUint32(sc.s+8+i*12)-1,v.getUint32(sc.s+12+i*12)]);
+  const parts=[];let si=0,tot=0;
+  for(let r=0;r<runs.length;r++){const end=r+1<runs.length?runs[r+1][0]:nc;for(let c=runs[r][0];c<end&&si<cnt;c++){let a=off(c),n=0;const k0=si;for(let j=0;j<runs[r][1]&&si<cnt;j++,si++)n+=size(si);
+    const raw=new Uint8Array(await blob.slice(a,a+n).arrayBuffer());let q=0;for(let k=k0;k<si;k++){const s=size(k),fl=s+7,hb=new Uint8Array(7);hb[0]=255;hb[1]=241;hb[2]=(ot-1)<<6|fi<<2|ch>>2;hb[3]=(ch&3)<<6|fl>>11;hb[4]=fl>>3&255;hb[5]=(fl&7)<<5|31;hb[6]=252;parts.push(hb,raw.subarray(q,q+s));q+=s;tot+=fl}}}
+  if(!tot)continue;
+  let b=await ctx.decodeAudioData(await new Blob(parts).arrayBuffer());
+  const el=path(v,tk,['edts','elst']);if(el){const ev=v.getUint8(el.s),mt=ev?Number(v.getBigInt64(el.s+16)):v.getInt32(el.s+12);const sk=Math.round(mt/scale*b.sampleRate);if(sk>0&&sk<b.length){const nb=ctx.createBuffer(b.numberOfChannels,b.length-sk,b.sampleRate);for(let c=0;c<b.numberOfChannels;c++)nb.copyToChannel(b.getChannelData(c).subarray(sk),c);b=nb}}
+  return b}
+ return null}
+window.isoAudio=isoAudio;
+const D0=decode;
+decode=function(m){if(m.id in BUF)return BUF[m.id];if(DECP[m.id])return DECP[m.id];
+ return DECP[m.id]=(async()=>{const bl=BLOB[m.id],oc=new OfflineAudioContext(2,48000,48000);let b=null;const iso=async()=>{try{return await isoAudio(bl,oc)}catch(e){console.warn('[sound] mp4 reader:',e);return null}};
+  try{if(MOB||bl.size>3e8)b=await iso();if(!b){try{b=await oc.decodeAudioData(await bl.arrayBuffer())}catch(e){b=null}}if(!b&&!(MOB||bl.size>3e8))b=await iso()}catch(e){b=null}
+  if(!b)console.warn('[sound] could not read the sound of',m.name);BUF[m.id]=b;delete DECP[m.id];return b})()};
 })();
 </script>
 </body>
