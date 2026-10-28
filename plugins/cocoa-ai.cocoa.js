@@ -1,7 +1,7 @@
 // ==CocoaCut Plugin==
 // @id cocoa-ai
 // @name Cocoa AI interpreter
-// @version 1.2
+// @version 1.3
 // @author CocoaCut
 // @description Understands free-form requests the Helper doesn't and turns them into Helper commands. Runs on your computer after a one-time download of about 500 MB.
 // @access full
@@ -11,22 +11,18 @@ const MODEL = 'onnx-community/Qwen2.5-0.5B-Instruct';
 const LIB = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3';
 const t = cocoa.t;
 
-// Commands the Helper is known to understand. The model copies their style.
+// Commands the Helper is known to understand, by topic. The model copies their style.
 const COMMANDS = [
-  'all text green', 'captions green', 'the last caption red', 'first caption bold', 'all text bold and italic',
-  'captions with a black outline', 'all text thick outline', 'captions red glow', 'text shadow', 'no background on captions',
-  'captions background 50%', 'all text caps', 'playful font for all text', 'all text montserrat font', 'captions to the top', 'captions a bit higher', 'captions lower', 'captions a lot higher', 'captions a bit to the left', 'captions bigger', 'captions bold', 'captions yellow', 'music quieter', 'music louder',
-  'center the text', 'all text bigger', 'text size 80', 'gradient red to blue on all text', 'all text neon style',
-  'replace "two" with "2"', 'change the last caption to "bye"', 'all video 2x speed', 'all video slow motion',
-  'music 40% volume', 'mute all video', 'music louder', 'fade in and out 1s on the music', 'loop the music',
-  'make the music last the whole video', 'crossfade between all clips', 'wipe left between all videos',
-  'remove transitions from all video', 'all video warm filter', 'all video vhs', 'all video vignette',
-  'all video black and white', 'all video brightness 120%', 'all video more contrast', 'blur all video 10',
-  'rotate all video 90 degrees', 'all video fill the frame', 'tint all video blue', 'remove all effects from all video',
-  'move the last caption 2 seconds later', 'split the first video in half', 'delete the last caption',
-  'cut the first 1s', 'close gaps', 'vertical 9:16', '30 fps', 'canvas color dark blue',
-  'add title "Hello" at 1s', 'zoom in on all video', 'zoom out the last video 20%', 'zoom in a lot on the first video', 'reset zoom on all video',
-  'captions pop in', 'captions fade in and out', 'typewriter captions', 'captions appear word by word', 'captions rise in and blur out', 'no animation on captions', 'add marker at 2s', 'go to 0:03', 'generate captions', 'trailer look', 'remove background noise'
+  ['Text color and style', ['all text green', 'captions yellow', 'the last caption red', 'first caption bold', 'every second caption yellow', 'first 3 captions blue', 'all text bold and italic', 'all text caps', 'captions lowercase', 'captions with a black outline', 'all text thick outline', 'remove the outline from captions', 'captions red glow', 'text shadow', 'all text neon style', 'gradient red to blue on all text', 'alternate red and white on all captions', 'letter spacing 10 on captions', 'playful font for all text', 'all text montserrat font']],
+  ['Caption background, size and place', ['no background on captions', 'captions black background', 'captions background 50%', 'all text bigger', 'captions smaller', 'text size 80', 'captions to the top', 'captions to the bottom', 'center the text', 'captions a bit higher', 'captions lower', 'captions a lot higher', 'captions a bit to the left']],
+  ['Caption words and timing', ['generate captions', 'replace "two" with "2"', 'change the last caption to "bye"', 'add title "Hello" at 1s', 'all captions 0.5s long', 'move the last caption 2 seconds later', 'duplicate the last caption', 'delete the last caption']],
+  ['Caption animation', ['captions pop in', 'captions fade in and out', 'captions pop in and fade out', 'typewriter captions', 'captions appear word by word', 'captions rise in and blur out', 'no animation on captions']],
+  ['Speed and sound', ['all video 2x speed', 'the first video 1.5x speed', 'all video slow motion', 'music 40% volume', 'music quieter', 'music louder', 'mute all video', 'fade in and out 1s on the music', 'fade out the music over 3 seconds', 'loop the music', 'make the music last the whole video', 'remove background noise']],
+  ['Transitions', ['crossfade between all clips', 'wipe left between all videos', 'zoom in transition between clips', 'pop in transition on all video', 'spin in on the first video', 'remove transitions from all video']],
+  ['Look and effects', ['all video warm filter', 'all video cold filter', 'all video black and white', 'all video sepia', 'all video vhs', 'all video vignette', 'all video film grain', 'all video brightness 120%', 'all video more contrast', 'all video more saturation', 'tint all video blue', 'blur all video 10', 'pixelate the first video', 'shake the first video', 'all video glitch', 'trailer look', 'remove all effects from all video']],
+  ['Framing', ['zoom in on the first video', 'zoom in a lot on the first video', 'zoom out the last video 20%', 'zoom all video in to 150%', 'reset zoom on all video', 'slow zoom in on all video', 'all video fill the frame', 'crop all video to 9:16', 'mirror the first video', 'rotate all video 90 degrees', 'all video 50% opacity']],
+  ['Cutting', ['split the first video in half', 'cut the first 1s', 'cut 0:01 to 0:02', 'close gaps']],
+  ['Project', ['vertical 9:16', 'square 1:1', '30 fps', 'canvas color dark blue', 'add marker at 2s', 'go to 0:03', 'export 720p webm']],
 ];
 
 const SHOTS = [
@@ -52,7 +48,7 @@ Reply with commands only, one per line, in English, written exactly in the style
 If the request is not about editing this video, or no command fits, reply exactly: NONE
 
 Example commands:
-${COMMANDS.join('\n')}`;
+${COMMANDS.map(([g, cs]) => g + ':\n' + cs.join('\n')).join('\n\n')}`;
 
 const WORKER = `
 let gen = null;
@@ -162,8 +158,8 @@ function context() {
 
 function clean(text) {
   return String(text || '').split('\n')
-    .map(l => l.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').replace(/^["'`]+|["'`]+$/g, '').trim())
-    .filter(l => l && !/^none\b/i.test(l) && l.length <= 120 && !/[;]/.test(l))
+    .map(l => l.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').trim().replace(/^(["'`])(.*)\1$/, '$2').trim())
+    .filter(l => l && !/^none\b/i.test(l) && !/:$/.test(l) && l.length <= 120 && !/[;]/.test(l))
     .slice(0, 6);
 }
 
