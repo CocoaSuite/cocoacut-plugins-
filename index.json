@@ -4,13 +4,13 @@
     {
       "id": "cocoa-ai",
       "name": "Cocoa AI interpreter",
-      "version": "1.2",
+      "version": "1.3",
       "author": "CocoaCut",
       "description": "Understands free-form requests the Helper doesn't and turns them into Helper commands. Runs on your computer after a one-time download of about 500 MB.",
       "access": "full",
       "permissions": [],
       "path": "plugins/cocoa-ai.cocoa.js",
-      "sha256": "f823bc8f83b679eae9714dc00c7eebf6970785e1c6261d2496cec226e2fb7b56"
+      "sha256": "40be4014b7790b923a2aa66917342f5d6eb54605faab4aecd461c7209b91519f"
     },
     {
       "id": "theme-studio",
