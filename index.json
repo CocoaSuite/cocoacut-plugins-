@@ -2,6 +2,17 @@
   "schema": 1,
   "plugins": [
     {
+      "id": "clip-handles",
+      "name": "Clip Handles",
+      "version": "1.0",
+      "author": "CocoaCut",
+      "description": "Shows grab handles on both ends of a clip, so you can see where to drag to trim it.",
+      "access": "full",
+      "permissions": [],
+      "path": "plugins/clip-handles.cocoa.js",
+      "sha256": "fe92cd0f20dad6727f8eca968f686731bd6e55519d801819a61c63528d5f7304"
+    },
+    {
       "id": "cocoa-ai",
       "name": "Cocoa AI interpreter",
       "version": "1.3",
