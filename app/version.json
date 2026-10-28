@@ -1,9 +1,9 @@
 {
-  "version": "1.3.5",
+  "version": "1.3.6",
   "date": "2026-10-28",
   "size": 686834,
-  "sha256": "7cebbfa2db58dccf0aefead940cb75844bd4327aa41de45915c873130cd02bdb",
-  "sig": "VxRsrDBmFVYleiHekF6syhgtlikCSKGm3DG2Si76DVntQBGW89VUyycjr5dIFYjsMyAe2lukUA8lbCdmwsySBA==",
+  "sha256": "dc5ec078cd46f5abb7680feb8f5d098fd4ed9af2cd72ffa12f55f57a51e44632",
+  "sig": "Jrxl09j+PXDuRsoytsrO8zAyjUlkacFpHkRINtDhomIm/hTDYRGK9IhUQzBRJwZTJutOcnDb1u3fDVqRVoYGCw==",
   "notes": {
     "en": {
       "new": [
@@ -14,6 +14,7 @@
     },
     "ru": {
       "new": [
+        "Предварительный просмотр оверлея для TikTok",
         "Сохранение в облако через Google и Яндекс Диск, для нескольких пользователей"
       ],
       "better": [],
