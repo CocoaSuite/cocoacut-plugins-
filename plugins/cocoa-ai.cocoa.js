@@ -1,7 +1,7 @@
 // ==CocoaCut Plugin==
 // @id cocoa-ai
 // @name Cocoa AI interpreter
-// @version 1.0
+// @version 1.1
 // @author CocoaCut
 // @description Understands free-form requests the Helper doesn't and turns them into Helper commands. Runs on your computer after a one-time download of about 500 MB.
 // @access full
@@ -25,7 +25,8 @@ const COMMANDS = [
   'rotate all video 90 degrees', 'all video fill the frame', 'tint all video blue', 'remove all effects from all video',
   'move the last caption 2 seconds later', 'split the first video in half', 'delete the last caption',
   'cut the first 1s', 'close gaps', 'vertical 9:16', '30 fps', 'canvas color dark blue',
-  'add title "Hello" at 1s', 'add marker at 2s', 'go to 0:03', 'generate captions', 'trailer look', 'remove background noise'
+  'add title "Hello" at 1s', 'zoom in on all video', 'zoom out the last video 20%', 'zoom in a lot on the first video', 'reset zoom on all video',
+  'captions pop in', 'captions fade in and out', 'typewriter captions', 'captions appear word by word', 'captions rise in and blur out', 'no animation on captions', 'add marker at 2s', 'go to 0:03', 'generate captions', 'trailer look', 'remove background noise'
 ];
 
 const SHOTS = [
@@ -35,6 +36,8 @@ const SHOTS = [
   ['give it an old movie feel', 'all video black and white\nall video vignette'],
   ['сделай субтитры заметнее', 'captions with a black outline\nall text bigger'],
   ['make everything feel faster', 'all video 2x speed'],
+  ['get closer on the first clip', 'zoom in on the first video'],
+  ['make the subtitles bounce in one word at a time', 'captions appear word by word'],
   ['put "The End" on screen at 5 seconds', 'add title "The End" at 5s'],
   ['what is the capital of France', 'NONE']
 ];
@@ -82,6 +85,8 @@ onmessage = async e => {
 
 let worker = null, state = cocoa.storage.get('downloaded') ? 'downloaded' : 'off', running = false, busy = false, seq = 0;
 const waits = {}, files = {};
+const EST = 500e6;
+let shown = 0;
 
 let sent = [], heard = false;
 function inPage() {
@@ -108,8 +113,9 @@ function startWorker(forcePage) {
     if (d.t === 'p') {
       files[d.file] = [d.loaded || 0, d.total || 0];
       let a = 0, b = 0; for (const k in files) { a += files[k][0]; b += files[k][1]; }
-      const pct = b ? Math.min(99, Math.floor(a / b * 100)) : 0;
-      item.setLabel(t('Cocoa AI: downloading ', 'Cocoa AI: загрузка ') + pct + '%');
+      shown = Math.max(shown, Math.min(99, Math.floor(a / Math.max(b, EST) * 100)));
+      const mb = Math.round(Math.max(b, EST) / 1e6);
+      item.setLabel(t('Cocoa AI: downloading ', 'Cocoa AI: загрузка ') + shown + '% ' + t(`of ${mb} MB`, `из ${mb} МБ`));
     } else if (d.t === 'ready') {
       state = 'ready'; cocoa.storage.set('downloaded', true);
       item.setLabel(t('Cocoa AI: ready', 'Cocoa AI: готов'));
