@@ -1,15 +1,24 @@
 {
-  "version": "1.3.2",
+  "version": "1.3.4",
   "date": "2026-10-28",
-  "size": 662277,
-  "sha256": "abef7e4b13ce235b9327a5ba737663fc302f1f0f401165d56e85df9aeaadae4b",
-  "sig": "0f3l2BXCkQINyjnqSPFg/N41GEfHP5nOPu+EXfV4Hhu87pe2Pjfpw3HmOtKu+l+RhpBLuJGUdHDVdbsUhiDbDQ==",
+  "size": 679394,
+  "sha256": "d256e9fcd372b5ecadfaa42799c391d964af30a24fd4d68abcb1742db7aa5d1b",
+  "sig": "CSfTTr6iU6RP3symGZiXilpKBrr6XQctEz1jxxcYQ/6Cgb/twQ/KaL9SPYmUWUS15EgyLXrA1dnqS9fTubFuAA==",
   "notes": {
     "en": {
-      "new": [],
-      "better": [
-        "Added 100+ new recognizable commands to CocoaAI and Helper"
+      "new": [
+        "TikTok Overlay preview",
+        "Cloud saving via Google & Yandex Drive"
       ],
+      "better": [],
+      "fixed": []
+    },
+    "ru": {
+      "new": [
+        "Предварительный просмотр оверлея для TikTok",
+        "Сохранение в облако через Google и Яндекс Диск"
+      ],
+      "better": [],
       "fixed": []
     }
   }

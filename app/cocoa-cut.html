@@ -589,7 +589,7 @@ let AC=null;
 function ensureAC(){if(AC){if(AC.state==='suspended')AC.resume();return}try{AC=new (window.AudioContext||window.webkitAudioContext)();for(const id in EL)wire(EL[id])}catch(e){AC=null}}
 function wire(o){if(o.g)return;try{const s=AC.createMediaElementSource(o.el);o.g=AC.createGain();s.connect(o.g).connect(mOut());o.el.volume=1;o.el.muted=false}catch(e){}}
 function rr(x,X,Y,W,H,r){x.beginPath();if(x.roundRect)x.roundRect(X,Y,W,H,r);else x.rect(X,Y,W,H)}
-function drawText(x,c,t){if(c.font&&!FL[c.font]&&GF.some(g=>g[0]===c.font))ensureFont(c.font);const sz=c.size||72,ff=(FONTS.find(f=>f[0]===c.font)||FONTS[0])[1];x.font=`${c.italic?'italic ':''}${c.bold?700:500} ${sz}px ${ff}`;x.textAlign='center';x.textBaseline='middle';if('letterSpacing' in x)x.letterSpacing=(c.ls||0)+'px';
+function drawText(x,c,t){if(c.font&&!FL[c.font])ensureFont(c.font);const sz=c.size||72,ff=(FONTS.find(f=>f[0]===c.font)||FONTS[0])[1];x.font=`${c.italic?'italic ':''}${c.bold?700:500} ${sz}px ${ff}`;x.textAlign='center';x.textBaseline='middle';if('letterSpacing' in x)x.letterSpacing=(c.ls||0)+'px';
  const maxW=P.w*.9,lines=[];for(const para of (c.upper?String(c.text??'').toUpperCase():String(c.text??'')).split('\n')){let cur='';for(const w of para.split(' ')){const tt=cur?cur+' '+w:w;if(cur&&x.measureText(tt).width>maxW){lines.push(cur);cur=w}else cur=tt}lines.push(cur)}
  const lh=sz*1.2,h=lines.length*lh,cx=P.w/2+(c.x||0),cy=(c.ty??.85)*P.h,y0=cy-h/2+lh/2;{const mw=Math.max(...lines.map(l=>x.measureText(l).width)),pw=c.box?sz*.8:0,ph=c.box?sz*.2:0;TBB[c.id]={x:cx-(mw+pw)/2,y:cy-h/2-ph,w:mw+pw,h:h+ph*2}}
  const AN=t==null?null:tAnim(c,t,lines),CX=cx;if(AN){x.save();x.globalAlpha*=AN.a;if(AN.bl>.3)x.filter=((x.filter&&x.filter!=='none')?x.filter+' ':'')+`blur(${AN.bl.toFixed(1)}px)`;x.translate(cx,cy+AN.dy);x.scale(AN.s,AN.s);x.translate(-cx,-cy)}
@@ -1494,7 +1494,7 @@ function applyLook(kind,k,cs){const P0=(kind==='fx'?FXP:FLP)[k];if(!cs){cs=selLi
  g.addEventListener('touchmove',e=>{if(DND)e.preventDefault()},{passive:false});g.addEventListener('contextmenu',e=>{if(e.target.closest('.tile'))e.preventDefault()})})();
 // ---------- fonts ----------
 const FL={};
-function ensureFont(n){if(FL[n])return FL[n].p;const g=GF.find(x=>x[0]===n);if(!g)return Promise.resolve();const l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+n.replace(/ /g,'+')+(g[2]?':wght@400;700':'')+'&display=swap';
+function ensureFont(n){if(FL[n])return FL[n].p;const cb=(P.fonts||{})[n]||(self.CF||{})[n];if(cb&&self.regFont)return regFont(n,cb);const g=GF.find(x=>x[0]===n);if(!g){FL[n]={s:'none',p:Promise.resolve()};return FL[n].p}const l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+n.replace(/ /g,'+')+(g[2]?':wght@400;700':'')+'&display=swap';
  const p=new Promise(res=>{const fin=ok=>{FL[n].s=ok?'ok':'err';dirty=true;if(ok)for(const b of document.querySelectorAll(`.fpick[data-v="${n}"]`))b.style.fontFamily=`"${n}",${g[3]}`;res(ok)};
   l.onload=()=>Promise.all([document.fonts.load(`400 32px "${n}"`,'AaЯя'),g[2]?document.fonts.load(`700 32px "${n}"`,'AaЯя'):0]).then(r=>fin(r[0].length>0)).catch(()=>fin(false));l.onerror=()=>fin(false)});
  FL[n]={s:'loading',p};document.head.append(l);return p}
@@ -1502,14 +1502,15 @@ function fontsFor(cs){return Promise.race([Promise.all([...new Set(cs.filter(c=>
 let fMood='all',fCb=null,fCur='',fIO=null;
 function openFonts(cur,cb){fCur=cur;fCb=cb;$('fSearch').value='';fMood=(GF.find(g=>g[0]===cur)||[])[1]||'all';$('fModal').hidden=false;fontsUI();setTimeout(()=>$('fList').querySelector('.frow.on')?.scrollIntoView({block:'center'}),30)}
 function fontsUI(){const q=$('fSearch').value.trim().toLowerCase();
- $('fMoods').innerHTML=[['all','All'],['builtin','Built-in'],...MOODS].map(([k,l])=>`<button type="button" data-m="${k}" class="${fMood===k&&!q?'on':''}">${l}</button>`).join('');
- const bi=FONTS.slice(0,5).map(f=>[f[0],'builtin',1,'']),list=(q?[...bi,...GF].filter(g=>g[0].toLowerCase().includes(q)):fMood==='all'?[...bi,...GF]:fMood==='builtin'?bi:GF.filter(g=>g[1]===fMood));
- const lab=Object.fromEntries(MOODS);fIO?.disconnect();
+ const my=Object.keys(self.CF||{}).map(n=>[n,'mine',1,'']);
+ $('fMoods').innerHTML=[['all','All'],...(my.length?[['mine','Your fonts']]:[]),['builtin','Built-in'],...MOODS].map(([k,l])=>`<button type="button" data-m="${k}" class="${fMood===k&&!q?'on':''}">${tr(l)}</button>`).join('')+`<button type="button" data-add>+ ${L('Add font','Добавить шрифт')}</button>`;
+ const bi=FONTS.slice(0,5).map(f=>[f[0],'builtin',1,'']),list=(q?[...my,...bi,...GF].filter(g=>g[0].toLowerCase().includes(q)):fMood==='all'?[...my,...bi,...GF]:fMood==='mine'?my:fMood==='builtin'?bi:GF.filter(g=>g[1]===fMood));
+ const lab={...Object.fromEntries(MOODS),mine:'Your fonts'};fIO?.disconnect();
  $('fList').innerHTML=list.length?list.map(([n,m])=>{const ff=(FONTS.find(f=>f[0]===n)||FONTS[0])[1];return`<button type="button" class="frow${n===fCur?' on':''}" data-f="${esc(n)}" style='font-family:${esc(ff)}'><span class="fn"${m==='builtin'?'':' data-notr'}>${esc(n)}</span><span class="fs" data-notr>Привет! Hello 123</span>${fMood==='all'||q?`<span class="fm">${tr(m==='builtin'?'Built-in':lab[m])}</span>`:''}</button>`}).join(''):`<div class="empty">${tr('No fonts match.')}</div>`;
  fIO=new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){ensureFont(e.target.dataset.f);fIO.unobserve(e.target)}},{root:$('fList'),rootMargin:'120px'});for(const r of $('fList').querySelectorAll('.frow'))fIO.observe(r)}
-$('fMoods').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;fMood=b.dataset.m;$('fSearch').value='';fontsUI();$('fList').scrollTop=0};
+$('fMoods').onclick=e=>{if(e.target.closest('[data-add]'))return $('fFile').click();const b=e.target.closest('[data-m]');if(!b)return;fMood=b.dataset.m;$('fSearch').value='';fontsUI();$('fList').scrollTop=0};
 $('fSearch').oninput=fontsUI;$('fClose').onclick=()=>$('fModal').hidden=true;
-$('fList').onclick=e=>{const b=e.target.closest('.frow');if(!b)return;const n=b.dataset.f;ensureFont(n);fCur=n;$('fModal').hidden=true;fCb?.(n)};
+$('fList').onclick=e=>{const b=e.target.closest('.frow');if(!b)return;const n=b.dataset.f;if(self.CF?.[n])(P.fonts=P.fonts||{})[n]=CF[n];ensureFont(n);fCur=n;$('fModal').hidden=true;fCb?.(n)};
 $('insp').addEventListener('click',e=>{const fp=e.target.closest('.fpick');if(!fp)return;openFonts(fp.dataset.v,n=>{const cs=selList().filter(c=>c.type==='text');if(!cs.length)return;qLearnFont(cs,n);mark();for(const c of cs)c.font=n;after();Promise.resolve(ensureFont(n)).then(()=>dirty=true)})});
 // ---------- tutorial ----------
 const TOUR_D=[[null,'Welcome to CocoaCut','This short tour shows the main parts of the editor. You can skip it at any time.'],['#bin','Media and presets','Import video, sound and images here, or drop files anywhere on the page. The tabs hold text styles, transitions, effects and filters: drag them onto the timeline or click to apply.'],
@@ -1661,7 +1662,7 @@ function qPrep(raw,tokOnly){const Q=[],fix=[];let s=qLit(qAddr(raw)).replace(/["
  s=qAli(s.replace(/\s+/g,' ').trim(),fix);
  for(const [a,b] of QEN)s=s.replace(a,b);
  s=s.replace(/[,!?:;](?!\d)/g,' ').replace(/\.(?!\d)/g,' ').replace(/\b(to be|so it is|so they are)\b/g,'').replace(/\s+/g,' ').trim();return{s,Q,fix}}
-const QRUP=[[/по\s+словам|по\s+одному\s+слову|слово\s+за\s+словом/g,'word by word'],[/(как\s+)?(на\s+)?печатн\S*\s+машинк\S*|по\s+буквам/g,'typewriter'],[/выскакива\S*|выпрыгива\S*|выскоч\S*/g,'pop in'],[/всплыва\S*|всплыв\S*/g,'rise in'],[/без\s+анимаци\S*/g,'no animation'],[/(убери|удали|выключи)\S*\s+(\S+\s+)?анимаци\S*/g,'remove animation'],[/анимаци\S*|анимир\S*/g,'animation'],[/потише|потише/g,'quieter'],[/погромче|громче/g,'louder'],[/по(д|ды)ним\S*|поднять|подыми\S*/g,'move up'],[/опуст\S*|опущ\S*/g,'move down'],[/(чуть[- ]чуть|чуточку|чуть|немного|немножко|слегка)/g,'a bit'],[/сильно|намного|гораздо/g,'a lot'],[/выше/g,'higher'],[/ниже/g,'lower'],[/левее/g,'left a bit'],[/правее/g,'right a bit'],[/появля\S*|появи\S*/g,'appear'],[/исчеза\S*|исчезн\S*/g,'disappear'],[/приблиз\S*|закрупн\S*/g,'zoom in'],[/отдал\S*/g,'zoom out'],[/в\s+два\s+раза/g,'в 2 раза'],[/в\s+три\s+раза/g,'в 3 раза'],[/в\s+четыре\s+раза/g,'в 4 раза'],[/в\s+полтора\s+раза/g,'в 1.5 раза'],[/(\d)\s*на\s*(\d)/g,'$1 by $2'],[/(во|на) весь (экран|кадр)|полный экран|во весь рост/g,' fill '],[/по вертикали/g,' vertically '],[/по горизонтали/g,' horizontally '],[/черные полосы|черных полос/g,' black bars '],[/еще раз|снова|опять/g,' again '],[/то же самое|тоже самое|то же|так же(?! как)/g,' same '],[/каждый второй|каждую вторую|каждое второе|каждые вторые|каждого второго/g,' every second '],[/каждый третий|каждую третью|каждое третье|каждого третьего/g,' every third '],
+const QRUP=[[/по\s+словам|по\s+одному\s+слову|слово\s+за\s+словом/g,'word by word'],[/(как\s+)?(на\s+)?печатн\S*\s+машинк\S*|по\s+буквам/g,'typewriter'],[/выскакива\S*|выпрыгива\S*|выскоч\S*/g,'pop in'],[/всплыва\S*|всплыв\S*/g,'rise in'],[/без\s+анимаци\S*/g,'no animation'],[/(убери|удали|выключи)\S*\s+(\S+\s+)?анимаци\S*/g,'remove animation'],[/анимаци\S*|анимир\S*/g,'animation'],[/приглуш\S*|притуш\S*/g,'duck'],[/под голос\S*|когда (я )?(говор|разговар)\S*/g,'under voice'],[/потише|потише/g,'quieter'],[/погромче|громче/g,'louder'],[/по(д|ды)ним\S*|поднять|подыми\S*/g,'move up'],[/опуст\S*|опущ\S*/g,'move down'],[/(чуть[- ]чуть|чуточку|чуть|немного|немножко|слегка)/g,'a bit'],[/сильно|намного|гораздо/g,'a lot'],[/выше/g,'higher'],[/ниже/g,'lower'],[/левее/g,'left a bit'],[/правее/g,'right a bit'],[/появля\S*|появи\S*/g,'appear'],[/исчеза\S*|исчезн\S*/g,'disappear'],[/приблиз\S*|закрупн\S*/g,'zoom in'],[/отдал\S*/g,'zoom out'],[/в\s+два\s+раза/g,'в 2 раза'],[/в\s+три\s+раза/g,'в 3 раза'],[/в\s+четыре\s+раза/g,'в 4 раза'],[/в\s+полтора\s+раза/g,'в 1.5 раза'],[/(\d)\s*на\s*(\d)/g,'$1 by $2'],[/(во|на) весь (экран|кадр)|полный экран|во весь рост/g,' fill '],[/по вертикали/g,' vertically '],[/по горизонтали/g,' horizontally '],[/черные полосы|черных полос/g,' black bars '],[/еще раз|снова|опять/g,' again '],[/то же самое|тоже самое|то же|так же(?! как)/g,' same '],[/каждый второй|каждую вторую|каждое второе|каждые вторые|каждого второго/g,' every second '],[/каждый третий|каждую третью|каждое третье|каждого третьего/g,' every third '],
  [/через один|через одну|через одно|через раз/g,' every other '],[/верни как было|как было/g,' undo '],[/(вы|от)ключи звук|убери звук|без звука/g,' mute '],[/включи звук/g,' unmute '],[/по очереди/g,' alternate '],[/что ты сделал/g,' history ']];
 const QEXTRA='please make want would like could should also look looks video little more less much very really quite slightly some they their there here what which when where your same again every other each first last next previous thing things stuff part parts section whole entire about around over under into onto from with without this that these those then than just only also too even odd want need give turn change set put keep leave show tell apply use remember forget save phrase phrases shortcut shortcuts history why explain looks recipe recipes trailer vlog cinematic cinema movie retro social karaoke clean captions subtitles alternate alternating alternately every second third fourth fifth repeat once more time times undo redo';
 const QSTOPW=new Set('const function return typeof undefined null true false catch throw else while instanceof await async'.split(' '));
@@ -1890,6 +1891,8 @@ function qActs(s,Q,list){const A=[],miss=[],usedQ=new Set();let done=false;
   if(abs==null&&rel==null&&(k=s.match(/(\d+)% (faster|slower)/)))rel=k[2]==='faster'?1+k[1]/100:1-k[1]/100;
   if(abs==null&&rel==null){if(has(/\bslowmo\b/))abs=.5;else if(has(/\b(faster|speed (it |them )?up|quicker)\b/))rel=1.5;else if(has(/\b(slower|slow (it |them )?down)\b/))rel=1/1.5}
   if(abs!=null||rel!=null)per(abs!=null?L(`Speed ${abs}×`,`Скорость ${abs}×`):L(rel>1?'Faster':'Slower',rel>1?'Быстрее':'Медленнее')+` ×${+rel.toFixed(2)}`,snd,c=>{const v=clamp(abs??spd(c)*rel,.25,4),o=[c.dur,c.spd];c.dur=Math.max(1/P.fps,fq(c.dur*spd(c)/v));c.spd=v;c.dur=Math.min(c.dur,maxDur(c));if(overlaps(c)){const oe=c.start+o[0],dl=cend(c)-oe,lt=P.clips.filter(x=>x!==c&&x.track===c.track&&x.start>=oe-1e-6);for(const x of lt)x.start=fq(x.start+dl);if(overlaps(c)){for(const x of lt)x.start=fq(x.start-dl);[c.dur,c.spd]=o;throw Error(L('slowing it down would overlap the next clip','клип наложится на следующий'))}}})}
+ // ducking
+ if(has(/\b(duck\w*|auto ?volume|under (the |my )?voice|when (i|someone|they|people) (talk|speak)\w*)\b/)){const off=has(/\b(no|stop|remove|turn off|without|don'?t)\b/);per(off?L('No ducking','Без приглушения'):L('Lower under voice','Тише под голосом'),c=>snd(c)&&med(c.media)?.type==='audio',c=>{if(off)delete c.duck;else c.duck=1});return{acts:A,miss}}
  // volume
  {let abs=null,rel=null,k;
   if(has(/\b(remove|no|without|kill|strip|cut)\b.*\b(sound|audio)\b|\bmute\w*\b|\bsilen\w*/)&&!has(/\bunmute/))abs=0;else if(has(/\bunmute\b/))abs=1;
@@ -2555,7 +2558,7 @@ Object.assign(RU,{'Wobble (deg)':'Покачивание (°)','Snap wobble':'Р
 window.QPHANTOM=/^[\s.…!,-]*(продолжение следует|субтитры (сделал|создавал|делал|подогнал)[^.]*|редактор субтитров[^.]*|корректор[^.]*|спасибо за просмотр|thanks? (you )?for watching|to be continued|thank you\.?|you|bye\.?|\[?(music|музыка|silence|тишина)\]?|♪+)[\s.…!,-]*$/i;
 </script>
 <script>
-const APP_VER='1.3.2';
+const APP_VER='1.3.4';
 (()=>{const U=window.cocoaUpd;if(!U)return;
 const st=document.createElement('style');st.textContent=`.upB{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}.upB[hidden],#upBar[hidden]{display:none}
 .upH{display:flex;align-items:center;gap:8px;font-weight:600}.upDot{width:8px;height:8px;border-radius:50%;background:#e5484d;flex:none}.upV{color:var(--mute);font-weight:400;font-size:12px}
@@ -2851,6 +2854,32 @@ Promise.all([idbGet('kv',KEY),idbGet('kv','plstore').then(x=>{try{PST=JSON.parse
 })();
 </script>
 <script>
+var CF={};
+const b64=u=>{let s='';for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s)};
+function regFont(n,b){const ff=new FontFace(n,Uint8Array.from(atob(b),c=>c.charCodeAt(0)));if(!FONTS.some(f=>f[0]===n))FONTS.push([n,`"${n}",system-ui,sans-serif`]);
+ const p=ff.load().then(f=>{document.fonts.add(f);FL[n].s='ok';dirty=true;MEAS.font='1px x'}).catch(()=>{FL[n].s='bad'});FL[n]={s:'loading',p};return p}
+idbGet('kv','cfonts').then(v=>{Object.assign(CF,v||{});for(const n in CF)ensureFont(n)}).catch(()=>{});
+{const i=document.createElement('input');i.type='file';i.id='fFile';i.hidden=true;i.accept='.ttf,.otf,.woff,.woff2';document.body.appendChild(i);
+ i.onchange=async()=>{const f=i.files[0];i.value='';if(!f)return;if(f.size>8e6)return toast(L('That font file is too big','Файл шрифта слишком большой'));
+  const n=f.name.replace(/\.(ttf|otf|woff2?)$/i,'').replace(/[-_]+/g,' ').replace(/["\\]/g,'').trim().slice(0,40)||'My font',b=b64(new Uint8Array(await f.arrayBuffer()));
+  try{await new FontFace(n,Uint8Array.from(atob(b),c=>c.charCodeAt(0))).load()}catch(e){return toast(L('That file isn’t a font CocoaCut can read','Этот файл не похож на шрифт'))}
+  CF[n]=b;delete FL[n];idbPut('kv','cfonts',CF).catch(()=>{});await ensureFont(n);(P.fonts=P.fonts||{})[n]=b;fCur=n;fMood='mine';fontsUI();toast(L('Font added: ','Шрифт добавлен: ')+n)}}
+const DKC={};
+function duckSpans(c){const vs=P.clips.filter(o=>o!==c&&!o.duck&&o.media&&(o.vol??1)>0&&!trk(o.track)?.mute&&med(o.media)?.peaks&&med(o.media)?.dur);
+ const k=vs.map(o=>[o.id,o.start,o.in,o.dur,o.spd,o.track].join()).join('|');if(DKC[c.id]?.k===k)return DKC[c.id].s;const sp=[];
+ for(const o of vs){const m=med(o.media),pk=m.peaks,N=pk.length;let mx=0;for(const v of pk)if(v>mx)mx=v;const th=Math.max(.05,mx*.3);let on=null;
+  for(let t=o.start;t<cend(o);t+=.05){const v=pk[Math.min(N-1,Math.floor(srcT(o,t)/m.dur*N))]>th;if(v&&on==null)on=t;else if(!v&&on!=null){sp.push([on,t]);on=null}}if(on!=null)sp.push([on,cend(o)])}
+ sp.sort((a,b)=>a[0]-b[0]);const r=[];for(const x of sp){const l=r[r.length-1];if(l&&x[0]-l[1]<.6)l[1]=Math.max(l[1],x[1]);else r.push([...x])}return(DKC[c.id]={k,s:r}).s}
+function duckAt(c,t){if(!c.duck)return 1;let d=0;for(const [a,b] of duckSpans(c)){if(t<a-.3)break;d=Math.max(d,clamp(Math.min((t-a+.3)/.3,(b+.5-t)/.5),0,1))}return 1-(1-(c.dkv??.3))*d}
+{const g0=gainAt;gainAt=(c,t)=>g0(c,t)*duckAt(c,t)}
+ov.addEventListener('dblclick',e=>{if(exporting)return;const c=topAt(ovPt(e));if(!c||c.type!=='text')return;e.preventDefault();sel=c.id;msel=new Set([c.id]);insp();
+ const bb=bbOf(c),k=ovScale(),ta=document.createElement('textarea');ta.value=c.text||'';
+ Object.assign(ta.style,{position:'absolute',left:Math.max(0,bb.x*k-8)+'px',top:Math.max(0,bb.y*k-8)+'px',width:Math.max(140,bb.w*k+16)+'px',height:Math.max(36,bb.h*k+16)+'px',font:`${c.bold?700:500} ${Math.max(12,(c.size||72)*k)}px ${(FONTS.find(f=>f[0]===c.font)||FONTS[0])[1]}`,textAlign:'center',lineHeight:'1.2',color:'#fff',background:'rgba(0,0,0,.75)',border:'1px solid #fff',borderRadius:'6px',padding:'4px',resize:'none',zIndex:5});
+ $('cw').appendChild(ta);ta.focus();ta.select();let done=false;
+ const end=ok=>{if(done)return;done=true;const v=ta.value.trim();ta.remove();if(ok&&v&&v!==c.text){mark();c.text=v;if(c.words)delete c.words;after()}};
+ ta.onkeydown=ev=>{ev.stopPropagation();if(ev.key==='Escape')end(false);else if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();end(true)}};ta.onblur=()=>end(true)});
+</script>
+<script>
 (()=>{const A=window.cocoaApp;
 const st=document.createElement('style');st.textContent='#qDlg{z-index:96}#qDlg .box{width:min(400px,100%)}#qDlg p{margin:0;color:var(--mute);line-height:1.45}#qDlg h3{margin:0;font-size:15px}#qDlg .row{display:flex;gap:6px;justify-content:flex-end}';document.head.appendChild(st);
 const D=document.createElement('div');D.id='qDlg';D.className='modal';D.hidden=true;document.body.appendChild(D);
@@ -2867,6 +2896,91 @@ if(A){A.onClose(()=>{A.ack();closing()});
  A.firstRun().then(f=>{if(!f)return;setTimeout(async()=>{const v=await dlg(L('Add CocoaCut to your desktop?','Добавить CocoaCut на рабочий стол?'),L('A shortcut lets you open CocoaCut straight from the desktop.','Ярлык позволит открывать CocoaCut прямо с рабочего стола.'),[[L('No thanks','Не надо'),false],[L('Add shortcut','Добавить ярлык'),true,1]]);
   const ok=await A.firstDone(v);if(v)toast(ok?L('Shortcut added to your desktop','Ярлык добавлен на рабочий стол'):L('Couldn’t add the shortcut','Не удалось добавить ярлык'))},900)})}
 else if(!window.cocoaUpd)addEventListener('beforeunload',e=>{if(unsaved()){e.preventDefault();e.returnValue=''}});
+})();
+</script>
+<script>
+// Drive client IDs. The Windows app keeps its own keys in main.js.
+const DRIVE={g:{id:'602726288571-haf6c4oda6quguskh251vmmlt0aisp3v.apps.googleusercontent.com'},y:{id:'9f2286be2dcd4567a9d7f0968d654dd4'}};
+(()=>{
+const DN={g:'Google Drive',y:L('Yandex Disk','Яндекс Диск')},T={},E=window.cocoaDrive;
+async function dFetch(url,o={}){
+ if(E){const r=await E.fetch({url,method:o.method||'GET',headers:o.headers||{},body:o.body instanceof Blob?await o.body.arrayBuffer():o.body});const b=r.body;
+  return{ok:r.status<300,status:r.status,loc:r.loc,json:async()=>JSON.parse(new TextDecoder().decode(b)),blob:async()=>new Blob([b])}}
+ const r=await fetch(url,o);return{ok:r.ok,status:r.status,loc:r.headers.get('location'),json:()=>r.json(),blob:()=>r.blob()}}
+const gis=()=>window.google?.accounts?.oauth2?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.onload=ok;s.onerror=()=>no(Error('offline'));document.head.appendChild(s)});
+async function webTok(p){
+ if(p==='g'){await gis();return new Promise((ok,no)=>google.accounts.oauth2.initTokenClient({client_id:DRIVE.g.id,scope:'https://www.googleapis.com/auth/drive.file',callback:r=>r.access_token?ok({at:r.access_token,exp:Date.now()+r.expires_in*1e3}):no(Error(r.error||'denied')),error_callback:e=>no(Error(e.type||'denied'))}).requestAccessToken())}
+ const w=open('https://oauth.yandex.ru/authorize?'+new URLSearchParams({response_type:'token',client_id:DRIVE.y.id,redirect_uri:location.origin+location.pathname}),'ydisk','width=520,height=640');
+ return new Promise((ok,no)=>{const iv=setInterval(()=>{let h='';try{h=w.location.hash}catch(e){}if(w.closed&&!h){clearInterval(iv);no(Error('denied'))}if(h.includes('access_token')){clearInterval(iv);w.close();const q=new URLSearchParams(h.slice(1));ok({at:q.get('access_token'),exp:Date.now()+(+q.get('expires_in')||3e7)*1e3})}},300)})}
+async function tok(p,force){
+ if(!DRIVE[p].id)throw Error(L('Drive isn’t set up in this build yet.','Диск ещё не настроен в этой сборке.'));
+ let t=T[p]||(T[p]=await idbGet('kv','drv-'+p).catch(()=>null));
+ if(t&&!force&&t.exp>Date.now()+6e4)return t.at;
+ t=E?await E.auth(p,{},t?.rt||''):await webTok(p);
+ if(!t?.at)throw Error(L('Sign-in failed','Не удалось войти'));T[p]=t;idbPut('kv','drv-'+p,t);return t.at}
+async function api(p,url,o={},re){const at=await tok(p,re);const r=await dFetch(url,{...o,headers:{...(o.headers||{}),Authorization:(p==='g'?'Bearer ':'OAuth ')+at}});
+ if(r.status===401&&!re)return api(p,url,o,1);if(!r.ok&&r.status!==308)throw Error('HTTP '+r.status);return r}
+const GA='https://www.googleapis.com/',YA='https://cloud-api.yandex.net/v1/disk/resources';
+const D={
+ g:{list:async()=>(await(await api('g',GA+'drive/v3/files?'+new URLSearchParams({q:"name contains '.ccut' and trashed=false",fields:'files(id,name,modifiedTime,size)',orderBy:'modifiedTime desc',pageSize:100}))).json()).files.map(f=>({id:f.id,name:f.name,t:f.modifiedTime,size:+f.size||0})),
+  get:async f=>(await api('g',GA+'drive/v3/files/'+f.id+'?alt=media')).blob(),
+  put:async(name,b,id)=>{const r=await api('g',GA+'upload/drive/v3/files'+(id?'/'+id:'')+'?uploadType=resumable',{method:id?'PATCH':'POST',headers:{'Content-Type':'application/json; charset=UTF-8'},body:JSON.stringify(id?{}:{name})});
+   if(!r.loc)throw Error('No upload link');const u=await dFetch(r.loc,{method:'PUT',body:b});if(!u.ok)throw Error('HTTP '+u.status)}},
+ y:{list:async()=>{try{return(await(await api('y',YA+'?path=app:/&limit=200&sort=-modified')).json())._embedded.items.filter(i=>/\.ccut$/i.test(i.name)).map(i=>({id:i.path,name:i.name,t:i.modified,size:i.size||0}))}catch(e){if(/404/.test(e.message))return[];throw e}},
+  get:async f=>{const h=(await(await api('y',YA+'/download?path='+encodeURIComponent(f.id))).json()).href;return(await dFetch(h)).blob()},
+  put:async(name,b)=>{const h=(await(await api('y',YA+'/upload?overwrite=true&path='+encodeURIComponent('app:/'+name))).json()).href;const u=await dFetch(h,{method:'PUT',body:b});if(!u.ok)throw Error('HTTP '+u.status)}}};
+const st=document.createElement('style');st.textContent='#drv{z-index:97}#drv .box{width:min(460px,100%);display:flex;flex-direction:column;gap:10px}#drv .tabs{display:flex;gap:6px}#drv .tabs .on{background:var(--acc,#693E2C);color:#fff}#drv ul{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}#drv li{display:flex;justify-content:space-between;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer}#drv li:hover{background:rgba(127,127,127,.15)}#drv li small{color:var(--mute)}#drv .msg{color:var(--mute);margin:0}#drv .row{display:flex;gap:6px}#drv .row input{flex:1}';document.head.appendChild(st);
+const M=document.createElement('div');M.id='drv';M.className='modal';M.hidden=true;document.body.appendChild(M);
+let mode,pv;try{pv=localStorage.getItem('cc-drv')||'g'}catch(e){pv='g'}
+const kb=n=>n>1e6?(n/1e6).toFixed(1)+' MB':Math.ceil(n/1e3)+' KB';
+function ui(){M.innerHTML=`<div class="box" role="dialog" aria-modal="true"><h3 style="margin:0;font-size:15px"></h3><div class="tabs"></div><p class="msg"></p><ul></ul>${mode==='save'?'<div class="row"><input><button class="pri" data-s>'+L('Save','Сохранить')+'</button></div>':''}<div class="row" style="justify-content:flex-end"><button data-x>${L('Close','Закрыть')}</button></div></div>`;
+ M.querySelector('h3').textContent=mode==='save'?L('Save to drive','Сохранить на диск'):L('Open from drive','Открыть с диска');
+ for(const p of['g','y']){const b=document.createElement('button');b.textContent=DN[p];if(p===pv)b.className='on';b.onclick=()=>{pv=p;try{localStorage.setItem('cc-drv',p)}catch(e){}ui()};M.querySelector('.tabs').appendChild(b)}
+ const inp=M.querySelector('input');if(inp)inp.value=safeName()+'.ccut';
+ M.querySelector('[data-x]').onclick=()=>M.hidden=true;const sb=M.querySelector('[data-s]');if(sb)sb.onclick=()=>save(inp.value);load()}
+const msg=t=>{const m=M.querySelector('.msg');if(m)m.textContent=t};
+let files=[];
+async function load(){const ul=M.querySelector('ul'),p=pv;msg(L('Connecting…','Подключение…'));
+ try{files=await D[p].list();if(p!==pv)return;msg(files.length?'':mode==='save'?L('No CocoaCut projects here yet.','Здесь пока нет проектов CocoaCut.'):L('No CocoaCut projects here yet. Save one to this drive first.','Здесь пока нет проектов CocoaCut. Сначала сохраните проект на этот диск.'));
+  for(const f of files){const li=document.createElement('li');li.innerHTML='<span></span><small></small>';li.firstChild.textContent=f.name;li.lastChild.textContent=(f.t?new Date(f.t).toLocaleDateString()+' · ':'')+kb(f.size);
+   li.onclick=()=>mode==='save'?(M.querySelector('input').value=f.name):get(f);ul.appendChild(li)}}
+ catch(e){if(p===pv)msg(L('Couldn’t reach ','Не удалось подключиться к ')+DN[p]+': '+e.message)}}
+async function get(f){msg(L('Downloading ','Загрузка ')+f.name+'…');try{const b=await D[pv].get(f);M.hidden=true;await openProject(new File([b],f.name))}catch(e){msg(L('Couldn’t open: ','Не удалось открыть: ')+e.message)}}
+async function save(n){n=(n||'').trim().replace(/[\\/:*?"<>|]+/g,'_');if(!n)return;if(!/\.ccut$/i.test(n))n+='.ccut';
+ const ex=files.find(f=>f.name===n);msg(L('Uploading…','Отправка…'));
+ try{await D[pv].put(n,projBlob(),ex?.id);markClean();M.hidden=true;toast(L('Saved to ','Сохранено: ')+DN[pv]+' · '+n)}catch(e){msg(L('Couldn’t save: ','Не удалось сохранить: ')+e.message)}}
+window.driveDlg=m=>{mode=m;M.hidden=false;ui()};
+const sa=document.getElementById('bSaveAs');if(sa){const a=document.createElement('button'),b=document.createElement('button');a.id='bDrvO';a.textContent=L('Open from drive…','Открыть с диска…');b.id='bDrvS';b.textContent=L('Save to drive…','Сохранить на диск…');a.onclick=()=>driveDlg('open');b.onclick=()=>driveDlg('save');sa.after(a,b)}
+const so=document.getElementById('stOpen');if(so){const c=document.createElement('button');c.textContent=L('Open from drive…','Открыть с диска…');c.onclick=()=>{document.getElementById('stX')?.click();driveDlg('open')};so.after(c)}
+})();
+</script>
+<script>
+(()=>{
+const cw=document.getElementById('cw'),full=document.getElementById('bFull');if(!cw||!full)return;
+const st=document.createElement('style');st.textContent=`#tko{position:absolute;inset:0;pointer-events:none;color:#fff;font:600 1em/1.25 system-ui,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,.5);overflow:hidden;z-index:2}
+#tko svg{width:2.3em;height:2.3em;display:block;margin:0 auto;fill:#fff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
+#tko .tp{position:absolute;top:3.5%;left:0;right:0;text-align:center;font-size:1.05em}#tko .tp b{border-bottom:.15em solid #fff;padding-bottom:.2em;margin-left:1.2em}#tko .tp span{opacity:.65}
+#tko .rc{position:absolute;right:2.5%;bottom:13%;display:flex;flex-direction:column;gap:1.1em;text-align:center;font-size:.8em;width:4em}
+#tko .av{width:3.4em;height:3.4em;border-radius:50%;background:#888;border:.15em solid #fff;margin:0 auto .4em;position:relative}#tko .av:after{content:"+";position:absolute;left:50%;bottom:-.75em;transform:translateX(-50%);width:1.3em;height:1.3em;border-radius:50%;background:#fe2c55;font:700 1em/1.3em system-ui;text-align:center}
+#tko .disc{width:3em;height:3em;border-radius:50%;background:#333;border:.6em solid #222;margin:0 auto}
+#tko .bl{position:absolute;left:3.5%;bottom:10%;width:72%;font-weight:400;font-size:.9em}#tko .bl b{display:block;font-size:1.1em;margin-bottom:.35em}#tko .bl p{margin:0 0 .5em}
+#tko .nv{position:absolute;left:0;right:0;bottom:0;height:7%;background:#000;display:flex;justify-content:space-around;align-items:center;font-size:.7em;opacity:.92}#tko .nv i{font-style:normal;opacity:.8}#tko .nv .pl{width:3.4em;height:2.1em;border-radius:.6em;background:#fff;color:#000;display:grid;place-items:center;font:700 1.4em/1 system-ui;opacity:1}
+#tko .sz{position:absolute;top:7%;bottom:22%;left:6%;right:14%;border:1px dashed rgba(255,214,0,.85)}
+#tko .sz span{position:absolute;left:.4em;top:.3em;font:500 .7em system-ui;color:#ffd600}
+#bTko.on{color:#fe2c55}`;document.head.appendChild(st);
+const I=d=>`<svg viewBox="0 0 24 24"><path d="${d}"/></svg>`;
+const O=document.createElement('div');O.id='tko';O.hidden=true;O.setAttribute('aria-hidden','true');
+O.innerHTML=`<div class="sz"><span>${L('Safe zone','Безопасная зона')}</span></div>
+<div class="tp"><span>${L('Following','Подписки')}</span><b>${L('For You','Рекомендации')}</b></div>
+<div class="rc"><div class="av"></div><div>${I('M12 21s-8-5.2-8-11a4.6 4.6 0 0 1 8-3.1A4.6 4.6 0 0 1 20 10c0 5.8-8 11-8 11z')}12.4K</div><div>${I('M12 3C6.5 3 3 6.6 3 10.6c0 2.3 1.2 4.3 3.1 5.6L5.5 20l4-2.2c.8.2 1.7.3 2.5.3 5.5 0 9-3.6 9-7.5S17.5 3 12 3z')}318</div><div>${I('M6 3h12v18l-6-4-6 4z')}1.2K</div><div>${I('M13 4l8 7.5-8 7.5v-4.5c-5 0-8 1.5-10 5 .5-6 3.5-10 10-11z')}406</div><div class="disc"></div></div>
+<div class="bl"><b>@${L('yourname','твой_ник')}</b><p>${L('Your caption goes here, it can run onto two lines… #fyp','Тут будет подпись к видео, она может быть в две строки… #рекомендации')}</p><span>♫ ${L('original sound','оригинальный звук')}</span></div>
+<div class="nv"><i>${L('Home','Главная')}</i><i>${L('Friends','Друзья')}</i><span class="pl">+</span><i>${L('Inbox','Входящие')}</i><i>${L('Profile','Профиль')}</i></div>`;
+cw.appendChild(O);
+const fit=()=>{O.style.fontSize=Math.max(6,cw.clientWidth/26)+'px'};new ResizeObserver(fit).observe(cw);
+const b=document.createElement('button');b.id='bTko';b.className='ic';b.title=L('Preview TikTok overlay (not exported)','Предпросмотр интерфейса TikTok (не экспортируется)');b.setAttribute('aria-label',b.title);
+b.innerHTML='<svg viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M15 9.5v4M15 15.5v.01M9 17.5h3"/></svg>';
+b.onclick=()=>{O.hidden=!O.hidden;b.classList.toggle('on',!O.hidden);fit();if(!O.hidden&&cw.clientWidth/cw.clientHeight>.6)toast(L('Tip: switch the canvas to 9:16 for TikTok','Совет: для TikTok выбери холст 9:16'))};
+full.before(b);
 })();
 </script>
 </body>
