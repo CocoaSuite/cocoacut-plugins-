@@ -1,7 +1,7 @@
 // ==CocoaCut Plugin==
 // @id cocoa-ai
 // @name Cocoa AI interpreter
-// @version 1.1
+// @version 1.2
 // @author CocoaCut
 // @description Understands free-form requests the Helper doesn't and turns them into Helper commands. Runs on your computer after a one-time download of about 500 MB.
 // @access full
@@ -15,7 +15,7 @@ const t = cocoa.t;
 const COMMANDS = [
   'all text green', 'captions green', 'the last caption red', 'first caption bold', 'all text bold and italic',
   'captions with a black outline', 'all text thick outline', 'captions red glow', 'text shadow', 'no background on captions',
-  'captions background 50%', 'all text caps', 'playful font for all text', 'all text montserrat font', 'captions to the top',
+  'captions background 50%', 'all text caps', 'playful font for all text', 'all text montserrat font', 'captions to the top', 'captions a bit higher', 'captions lower', 'captions a lot higher', 'captions a bit to the left', 'captions bigger', 'captions bold', 'captions yellow', 'music quieter', 'music louder',
   'center the text', 'all text bigger', 'text size 80', 'gradient red to blue on all text', 'all text neon style',
   'replace "two" with "2"', 'change the last caption to "bye"', 'all video 2x speed', 'all video slow motion',
   'music 40% volume', 'mute all video', 'music louder', 'fade in and out 1s on the music', 'loop the music',
@@ -35,6 +35,11 @@ const SHOTS = [
   ['the music drowns out my voice', 'music 40% volume'],
   ['give it an old movie feel', 'all video black and white\nall video vignette'],
   ['сделай субтитры заметнее', 'captions with a black outline\nall text bigger'],
+  ['подними субтитры чуть выше', 'captions a bit higher'],
+  ['текст сползает вниз, верни его повыше', 'captions higher'],
+  ['субтитры слишком мелкие и бледные', 'captions bigger\ncaptions bold'],
+  ['голос не слышно из-за музыки', 'music 40% volume'],
+  ['сделай поярче', 'all video brightness 120%'],
   ['make everything feel faster', 'all video 2x speed'],
   ['get closer on the first clip', 'zoom in on the first video'],
   ['make the subtitles bounce in one word at a time', 'captions appear word by word'],
