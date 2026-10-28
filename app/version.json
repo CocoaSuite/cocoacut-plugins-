@@ -1,24 +1,27 @@
 {
-  "version": "1.3.6",
-  "date": "2026-10-28",
-  "size": 686834,
-  "sha256": "dc5ec078cd46f5abb7680feb8f5d098fd4ed9af2cd72ffa12f55f57a51e44632",
-  "sig": "Jrxl09j+PXDuRsoytsrO8zAyjUlkacFpHkRINtDhomIm/hTDYRGK9IhUQzBRJwZTJutOcnDb1u3fDVqRVoYGCw==",
+  "version": "1.3.7",
+  "date": "2026-10-29",
+  "size": 687756,
+  "sha256": "808c1860d8c6f8c6b09af46269fdd89e71b214ea574f2327fa33272c24f0e773",
+  "sig": "DEM0XE9WAHRInVCWMBNoC3XzLaQHA43BX/7qyz73+Jan3q1jxCilqztNX5GhlnXaCCeYqeVqIE7P+TH1h3txBQ==",
   "notes": {
     "en": {
       "new": [
-        "Cloud saving via Google & Yandex Drive, accessed by multiple users"
+        "Official plugins now have a blue checkmark next to their name"
       ],
       "better": [],
-      "fixed": []
+      "fixed": [
+        "The Full access label no longer breaks across two lines"
+      ]
     },
     "ru": {
       "new": [
-        "Предварительный просмотр оверлея для TikTok",
-        "Сохранение в облако через Google и Яндекс Диск, для нескольких пользователей"
+        "У официальных плагинов теперь есть синяя галочка рядом с названием"
       ],
       "better": [],
-      "fixed": []
+      "fixed": [
+        "Метка «Полный доступ» больше не разрывается на две строки"
+      ]
     }
   }
 }
